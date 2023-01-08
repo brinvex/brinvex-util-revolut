@@ -74,7 +74,7 @@
         <slf4j.version>2.0.6</slf4j.version>
 
         <rootDir>${project.basedir}</rootDir>
-        <skipLicenseCopy>true</skipLicenseCopy>
+        <isPomPackagingModule>true</isPomPackagingModule>
 
     </properties>
 
@@ -108,6 +108,45 @@
     </dependencyManagement>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <!--
+                                <plugin>
+                                    <groupId>org.sonatype.plugins</groupId>
+                                    <artifactId>nexus-staging-maven-plugin</artifactId>
+                                    <version>1.6.7</version>
+                                    <extensions>true</extensions>
+                                    <configuration>
+                                        <serverId>ossrh</serverId>
+                                        <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+                                        <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                                    </configuration>
+                                </plugin>
+                -->
+
+                <!-- <plugin>
+                     <groupId>org.apache.maven.plugins</groupId>
+                     <artifactId>maven-gpg-plugin</artifactId>
+                     <version>1.6</version>
+                     <executions>
+                         <execution>
+                             <id>sign-artifacts</id>
+                             <phase>verify</phase>
+                             <goals>
+                                 <goal>sign</goal>
+                             </goals>
+                         </execution>
+                     </executions>
+                     <configuration>
+                         <keyname>0xF9171EDF</keyname>
+                         <passphraseServerId>0xF9171EDF</passphraseServerId>
+                     </configuration>
+                 </plugin>-->
+
+            </plugins>
+
+        </pluginManagement>
+
         <plugins>
             <!-- https://stackoverflow.com/questions/36970384/surefire-is-not-picking-up-junit-5-tests -->
             <plugin>
@@ -122,40 +161,13 @@
         <profile>
             <id>release</id>
             <activation>
-                <activeByDefault>false</activeByDefault>
+                <property>
+                    <name>performRelease</name>
+                    <value>true</value>
+                </property>
             </activation>
             <build>
                 <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <version>3.2.1</version>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar-no-fork</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.4.1</version>
-                        <executions>
-                            <execution>
-                                <id>attach-javadocs</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                        <configuration>
-                            <doclint>all,-missing</doclint>
-                        </configuration>
-                    </plugin>
-
                     <plugin>
                         <groupId>com.mycila</groupId>
                         <artifactId>license-maven-plugin</artifactId>
@@ -179,7 +191,6 @@
                             </licenseSets>
                         </configuration>
                     </plugin>
-
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-resources-plugin</artifactId>
@@ -192,7 +203,7 @@
                                     <goal>copy-resources</goal>
                                 </goals>
                                 <configuration>
-                                    <skip>${skipLicenseCopy}</skip>
+                                    <skip>${isPomPackagingModule}</skip>
                                     <outputDirectory>${project.basedir}/src/main/resources/META-INF</outputDirectory>
                                     <resources>
                                         <resource>
@@ -207,11 +218,77 @@
                         </executions>
                     </plugin>
 
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>2.4</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <inherited>true</inherited>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.4.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>1.6</version>
+                        <configuration>
+                            <keyname>0xF9171EDF</keyname>
+                            <passphrase>${gpg.passphrase}</passphrase>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-release-plugin</artifactId>
+                        <version>${maven-release-plugin.version}</version>
+                        <configuration>
+                            <autoVersionSubmodules>true</autoVersionSubmodules>
+                            <useReleaseProfile>false</useReleaseProfile>
+                            <releaseProfiles>release</releaseProfiles>
+                            <goals>deploy</goals>
+                        </configuration>
+                    </plugin>
                 </plugins>
             </build>
         </profile>
     </profiles>
 
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
 
 </project>

@@ -29,7 +29,7 @@
     <artifactId>brinvex-util-revolut-impl</artifactId>
     <properties>
         <rootDir>${project.basedir}/..</rootDir>
-        <skipLicenseCopy>false</skipLicenseCopy>
+        <isPomPackagingModule>false</isPomPackagingModule>
     </properties>
 
     <dependencies>
@@ -55,6 +55,17 @@
             <scope>test</scope>
         </dependency>
 
+
     </dependencies>
 
+<!--
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+-->
 </project>
