@@ -94,7 +94,12 @@ class RevolutTransactionsProviderTest {
     void mergeTradingAccountTransactions_oneAccountStatement() throws IOException {
 
         TradingAccountTransactions accountTransactions1;
-        try (FileInputStream fis = new FileInputStream(DATA_FOLDER + "/trading-account-statement/trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf")) {
+        Path path = Path.of(DATA_FOLDER + "/trading-account-statement/trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf");
+        if (!path.toFile().exists()) {
+            out.printf("File not found: '%s'", path);
+            return;
+        }
+        try (FileInputStream fis = new FileInputStream(path.toFile())) {
             accountTransactions1 = transactionsProvider.parseTradingAccountTransactions(fis);
         }
         Map<String, TradingAccountTransactions> allAccountTransactions = transactionsProvider.consolidateTradingAccountTransactions(List.of(accountTransactions1));
@@ -175,6 +180,10 @@ class RevolutTransactionsProviderTest {
 
         Path pdfPath = Path.of(DATA_FOLDER + "/trading-account-statement/trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf");
         TradingAccountTransactions transactions1;
+        if (!pdfPath.toFile().exists()) {
+            out.printf("File not found: '%s'", pdfPath);
+            return;
+        }
         try (FileInputStream fis = new FileInputStream(pdfPath.toFile())) {
             transactions1 = transactionsProvider.parseTradingAccountTransactions(fis);
         }
@@ -256,6 +265,12 @@ class RevolutTransactionsProviderTest {
 
         Path pdfPath1 = Path.of(DATA_FOLDER + "/trading-account-statement/trading-account-statement_2021-01-01_2021-12-31_en_b094bc.pdf");
         Path pdfPath2 = Path.of(DATA_FOLDER + "/trading-account-statement/trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf");
+        for(Path p : List.of(pdfPath1, pdfPath2)) {
+            if (!p.toFile().exists()) {
+                out.printf("File not found: '%s'", p);
+                return;
+            }
+        }
         TradingAccountTransactions accountTransactions1;
         try (FileInputStream fis = new FileInputStream(pdfPath1.toFile())) {
             accountTransactions1 = transactionsProvider.parseTradingAccountTransactions(fis);
@@ -341,6 +356,12 @@ class RevolutTransactionsProviderTest {
 
         Path pdfPath1 = Path.of(DATA_FOLDER + "/profit-loss-statement/trading-pnl-statement_2021-01-01_2022-01-01_en-us_6e8044.pdf");
         Path pdfPath2 = Path.of(DATA_FOLDER + "/profit-loss-statement/trading-pnl-statement_2022-01-01_2023-01-01_en-us_b1efb2.pdf");
+        for(Path p : List.of(pdfPath1, pdfPath2)) {
+            if (!p.toFile().exists()) {
+                out.printf("File not found: '%s'", p);
+                return;
+            }
+        }
         TradingAccountTransactions accountTransactions1;
         try (FileInputStream fis = new FileInputStream(pdfPath1.toFile())) {
             accountTransactions1 = transactionsProvider.parseTradingAccountTransactions(fis);
@@ -386,7 +407,12 @@ class RevolutTransactionsProviderTest {
         Path pdfPath2 = Path.of(DATA_FOLDER + "/trading-account-statement/trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf");
         Path pdfPath3 = Path.of(DATA_FOLDER + "/profit-loss-statement/trading-pnl-statement_2021-01-01_2022-01-01_en-us_6e8044.pdf");
         Path pdfPath4 = Path.of(DATA_FOLDER + "/profit-loss-statement/trading-pnl-statement_2022-01-01_2023-01-01_en-us_b1efb2.pdf");
-
+        for(Path p : List.of(pdfPath1, pdfPath2, pdfPath3, pdfPath4)) {
+            if (!p.toFile().exists()) {
+                out.printf("File not found: '%s'", p);
+                return;
+            }
+        }
         TradingAccountTransactions accountTransactions1;
         try (FileInputStream fis = new FileInputStream(pdfPath1.toFile())) {
             accountTransactions1 = transactionsProvider.parseTradingAccountTransactions(fis);
