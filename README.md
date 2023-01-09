@@ -20,15 +20,15 @@ Revolut report formats and makes them available in simple consistent form for fu
 - Add dependencies
 ````
     <dependency>
-        <groupId>com.brinvex</groupId>
+        <groupId>com.brinvex.util</groupId>
         <artifactId>brinvex-util-revolut-api</artifactId>
         <version>1.0.0</version>
     </dependency>
     <dependency>
-        <groupId>com.brinvex</groupId>
+        <groupId>com.brinvex.util</groupId>
         <artifactId>brinvex-util-revolut-impl</artifactId>
         <version>1.0.0</version>
-        <scope>runtime</scope>f 
+        <scope>runtime</scope>
     </dependency>
 ````
 - Parse individual _trading-account-statement_ or _profit-and-loss-statement_ PDF files. 

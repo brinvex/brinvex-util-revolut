@@ -21,12 +21,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.brinvex</groupId>
+    <groupId>com.brinvex.util</groupId>
     <artifactId>brinvex-util-revolut</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Brinvex-Util-Revolut</name>
+    <name>${project.groupId}:${project.artifactId}</name>
     <description>
         Brinvex-Util-Revolut is a compact Java library which enables developers
         to easily extract and work with data from Revolut trading account reports.
@@ -35,6 +35,7 @@
         <name>Brinvex</name>
         <url>https://brinvex.com</url>
     </organization>
+    <url>https://github.com/brinvex/brinvex-util-revolut</url>
     <inceptionYear>2023</inceptionYear>
 
     <licenses>
@@ -44,17 +45,25 @@
         </license>
     </licenses>
 
+    <developers>
+        <developer>
+            <name>Lukas</name>
+            <email>dev@brinvex.com</email>
+            <organization>Brinvex</organization>
+            <organizationUrl>https://brinvex.com</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com:brinvex/brinvex-util-revolut.git</connection>
+        <developerConnection>scm:git:https://github.com/brinvex/brinvex-util-revolut.git</developerConnection>
+        <url>scm:git:https://github.com/brinvex/brinvex-util-revolut/tree/master</url>
+    </scm>
+
     <modules>
         <module>brinvex-util-revolut-api</module>
         <module>brinvex-util-revolut-impl</module>
     </modules>
-
-    <scm>
-        <developerConnection>scm:git:git@github.com:brinvex/brinvex-util-revolut.git</developerConnection>
-        <url>scm:git:git@github.com:brinvex/brinvex-util-revolut.git</url>
-        <connection>scm:git:git@github.com:brinvex/brinvex-util-revolut.git</connection>
-        <tag>1.0.0</tag>
-    </scm>
 
     <properties>
         <java.version>11</java.version>
@@ -82,7 +91,7 @@
         <dependencies>
 
             <dependency>
-                <groupId>com.brinvex</groupId>
+                <groupId>com.brinvex.util</groupId>
                 <artifactId>brinvex-util-revolut-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -110,41 +119,7 @@
     <build>
         <pluginManagement>
             <plugins>
-                <!--
-                                <plugin>
-                                    <groupId>org.sonatype.plugins</groupId>
-                                    <artifactId>nexus-staging-maven-plugin</artifactId>
-                                    <version>1.6.7</version>
-                                    <extensions>true</extensions>
-                                    <configuration>
-                                        <serverId>ossrh</serverId>
-                                        <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-                                        <autoReleaseAfterClose>true</autoReleaseAfterClose>
-                                    </configuration>
-                                </plugin>
-                -->
-
-                <!-- <plugin>
-                     <groupId>org.apache.maven.plugins</groupId>
-                     <artifactId>maven-gpg-plugin</artifactId>
-                     <version>1.6</version>
-                     <executions>
-                         <execution>
-                             <id>sign-artifacts</id>
-                             <phase>verify</phase>
-                             <goals>
-                                 <goal>sign</goal>
-                             </goals>
-                         </execution>
-                     </executions>
-                     <configuration>
-                         <keyname>0xF9171EDF</keyname>
-                         <passphraseServerId>0xF9171EDF</passphraseServerId>
-                     </configuration>
-                 </plugin>-->
-
             </plugins>
-
         </pluginManagement>
 
         <plugins>
@@ -160,12 +135,10 @@
     <profiles>
         <profile>
             <id>release</id>
-            <activation>
-                <property>
-                    <name>performRelease</name>
-                    <value>true</value>
-                </property>
-            </activation>
+
+            <properties>
+                <activate-settings-xml-gpg-properties>true</activate-settings-xml-gpg-properties>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
@@ -244,14 +217,19 @@
                                 </goals>
                             </execution>
                         </executions>
+                        <configuration>
+                            <doclint>all,-missing</doclint>
+                        </configuration>
                     </plugin>
+
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
                         <version>1.6</version>
                         <configuration>
-                            <keyname>0xF9171EDF</keyname>
+                            <keyname>${gpg.keyname}</keyname>
                             <passphrase>${gpg.passphrase}</passphrase>
+                            <executable>${gpg.executable}</executable>
                         </configuration>
                         <executions>
                             <execution>
@@ -270,16 +248,16 @@
                         <configuration>
                             <autoVersionSubmodules>true</autoVersionSubmodules>
                             <useReleaseProfile>false</useReleaseProfile>
-                            <releaseProfiles>release</releaseProfiles>
+                            <releaseProfiles>release,settings-xml-gpg-properties</releaseProfiles>
                             <goals>deploy</goals>
                             <pushChanges>false</pushChanges>
+                            <scmCommentPrefix xml:space="preserve">release: </scmCommentPrefix>
                         </configuration>
                     </plugin>
                 </plugins>
             </build>
         </profile>
     </profiles>
-
 
     <distributionManagement>
         <snapshotRepository>
