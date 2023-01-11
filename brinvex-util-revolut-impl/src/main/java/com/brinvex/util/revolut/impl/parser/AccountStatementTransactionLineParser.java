@@ -20,12 +20,14 @@ import com.brinvex.util.revolut.api.model.Transaction;
 import com.brinvex.util.revolut.api.model.TransactionSide;
 import com.brinvex.util.revolut.api.model.TransactionType;
 
-import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static com.brinvex.util.revolut.impl.parser.ParseUtil.parseDecimal;
+import static com.brinvex.util.revolut.impl.parser.ParseUtil.parseMoney;
 
 public class AccountStatementTransactionLineParser {
 
@@ -40,27 +42,27 @@ public class AccountStatementTransactionLineParser {
 
         private static final Pattern VALUE_FEES_COMMISSION_PATTERN = Pattern.compile(
                 "" +
-                "\\s*(?<value>-?\\$(\\d+,)?\\d+(\\.\\d+)?)" +
-                "\\s+(?<fees>-?\\$(\\d+,)?\\d+(\\.\\d+)?)" +
-                "\\s+(?<commission>-?\\$(\\d+,)?\\d+(\\.\\d+)?)"
+                "\\s*(?<value>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<fees>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<commission>-?\\$(\\d+,)*\\d+(\\.\\d+)?)"
         );
 
         private static final Pattern QTY_VALUE_FEES_COMMISSIONS_PATTERN = Pattern.compile(
                 "" +
-                "\\s*(?<quantity>-?(\\d+,)?\\d+(\\.\\d+)?)" +
-                "\\s+(?<value>-?\\$(\\d+,)?\\d+(\\.\\d+)?)" +
-                "\\s+(?<fees>-?\\$(\\d+,)?\\d+(\\.\\d+)?)" +
-                "\\s+(?<commission>-?\\$(\\d+,)?\\d+(\\.\\d+)?)"
+                "\\s*(?<quantity>-?(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<value>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<fees>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<commission>-?\\$(\\d+,)*\\d+(\\.\\d+)?)"
         );
 
         private static final Pattern TRADE_PATTERN = Pattern.compile(
                 "" +
-                "\\s*(?<quantity>-?(\\d+,)?\\d+(\\.\\d+)?)" +
-                "\\s+(?<price>-?\\$?(\\d+,)?\\d+(\\.\\d+)?)" +
+                "\\s*(?<quantity>-?(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<price>-?\\$?(\\d+,)*\\d+(\\.\\d+)?)" +
                 "\\s+(?<side>(Buy)|(Sell))" +
-                "\\s+(?<value>-?\\$(\\d+,)?\\d+(\\.\\d+)?)" +
-                "\\s+(?<fees>-?\\$(\\d+,)?\\d+(\\.\\d+)?)" +
-                "\\s+(?<commission>-?\\$(\\d+,)?\\d+(\\.\\d+)?)"
+                "\\s+(?<value>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<fees>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<commission>-?\\$(\\d+,)*\\d+(\\.\\d+)?)"
         );
 
         private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss O");
@@ -112,28 +114,18 @@ public class AccountStatementTransactionLineParser {
                 throw new IllegalStateException(String.format("Could not parse transaction line: '%s'", line));
             }
 
-            transaction.setValue(parserBigDecimal(matcher.group("value")));
-            transaction.setFees(parserBigDecimal(matcher.group("fees")));
-            transaction.setCommission(parserBigDecimal(matcher.group("commission")));
+            transaction.setValue(parseMoney(matcher.group("value")));
+            transaction.setFees(parseMoney(matcher.group("fees")));
+            transaction.setCommission(parseMoney(matcher.group("commission")));
             if (pattern == LazyHolder.QTY_VALUE_FEES_COMMISSIONS_PATTERN) {
-                transaction.setQuantity(parserBigDecimal(matcher.group("quantity")));
+                transaction.setQuantity(parseDecimal(matcher.group("quantity")));
             } else if (pattern == LazyHolder.TRADE_PATTERN) {
-                transaction.setQuantity(parserBigDecimal(matcher.group("quantity")));
-                transaction.setPrice(parserBigDecimal(matcher.group("price")));
+                transaction.setQuantity(parseDecimal(matcher.group("quantity")));
+                transaction.setPrice(parseMoney(matcher.group("price")));
                 transaction.setSide(TransactionSide.valueOf(matcher.group("side").toUpperCase()));
             }
         }
         return transaction;
-    }
-
-    private BigDecimal parserBigDecimal(String s) {
-        if (s == null || s.isBlank()) {
-            return null;
-        }
-        String normalized = s.trim()
-                .replace(",", "")
-                .replace("$", "");
-        return new BigDecimal(normalized);
     }
 
     private TransactionType parseTransactionType(String transactionTypeStr) {
