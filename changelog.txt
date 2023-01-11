@@ -1,0 +1,3 @@
+Version 2.0.0 - 2023-01-11
+================================================================================
+Redesign datamodel and services to be able to represent portfolio breakdown snapshots

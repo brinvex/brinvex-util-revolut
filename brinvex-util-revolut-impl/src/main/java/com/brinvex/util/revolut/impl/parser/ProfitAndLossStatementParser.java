@@ -15,10 +15,13 @@
  */
 package com.brinvex.util.revolut.impl.parser;
 
-import com.brinvex.util.revolut.api.model.TradingAccountTransactions;
+import com.brinvex.util.revolut.api.model.PortfolioPeriod;
 import com.brinvex.util.revolut.api.model.Transaction;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -28,47 +31,61 @@ public class ProfitAndLossStatementParser {
 
     private static class LazyHolder {
 
-        private static final Pattern ACC_STATEMENT_ACCOUNT_NAME_PATTERN = Pattern.compile(
+        private static final Pattern ACCOUNT_NAME_PATTERN = Pattern.compile(
                 "Account\\s+name\\s+(?<accountName>.+)");
 
-        private static final Pattern ACC_STATEMENT_ACCOUNT_NUMBER_PATTERN = Pattern.compile(
+        private static final Pattern ACCOUNT_NUMBER_PATTERN = Pattern.compile(
                 "Account\\s+number\\s+(?<accountNumber>.+)");
 
-        private static final Pattern PNL_STATEMENT_TRANSACTION_SECTION_START_PATTERN = Pattern.compile(
+        private static final Pattern PERIOD_PATTERN = Pattern.compile(
+                "Period\\s+(?<periodFrom>\\d{2}\\s[A-Za-z]{3}\\s\\d{4})\\s-\\s(?<periodTo>\\d{2}\\s[A-Za-z]{3}\\s\\d{4})");
+
+        private static final Pattern TRANSACTION_SECTION_START_PATTERN = Pattern.compile(
                 "Dividends");
 
-        private static final Pattern PNL_STATEMENT_TRANSACTION_HEADER_PATTERN = Pattern.compile(
+        private static final Pattern TRANSACTION_HEADER_PATTERN = Pattern.compile(
                 "Date\\s+Symbol\\s+Security\\s+name\\s+ISIN\\s+Country\\s+Gross\\s+Amount\\s+Withholding\\s+Tax\\s+Net\\s+Amount");
 
-        private static final Pattern PNL_STATEMENT_TRANSACTION_SECTION_END_PATTERN = Pattern.compile(
+        private static final Pattern TRANSACTION_SECTION_END_PATTERN = Pattern.compile(
                 "Total\\s+.*");
+
+        private static final DateTimeFormatter PERIOD_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd MMM yyyy");
     }
 
     private final ProfitAndLossDividendLineParser profitAndLossDividendLineParser = new ProfitAndLossDividendLineParser();
 
-    public TradingAccountTransactions parseProfitAndLossStatement(List<String> lines) {
+    public PortfolioPeriod parseProfitAndLossStatement(List<String> lines) {
 
         String accountName = null;
         String accountNumber = null;
+        LocalDate periodFrom = null;
+        LocalDate periodTo = null;
         for (String line : lines) {
             line = stripToEmpty(line);
             if (line.isBlank()) {
                 continue;
             }
             {
-                Matcher matcher = LazyHolder.ACC_STATEMENT_ACCOUNT_NAME_PATTERN.matcher(line);
+                Matcher matcher = LazyHolder.ACCOUNT_NAME_PATTERN.matcher(line);
                 if (matcher.find()) {
                     accountName = matcher.group("accountName");
                 }
             }
             {
-                Matcher matcher = LazyHolder.ACC_STATEMENT_ACCOUNT_NUMBER_PATTERN.matcher(line);
+                Matcher matcher = LazyHolder.ACCOUNT_NUMBER_PATTERN.matcher(line);
                 if (matcher.find()) {
                     accountNumber = matcher.group("accountNumber");
                 }
-
             }
-            if (accountName != null && accountNumber != null) {
+            {
+                Matcher matcher = LazyHolder.PERIOD_PATTERN.matcher(line);
+                if (matcher.find()) {
+                    periodFrom = LocalDate.parse(matcher.group("periodFrom"), LazyHolder.PERIOD_DATE_FORMATTER);
+                    periodTo = LocalDate.parse(matcher.group("periodTo"), LazyHolder.PERIOD_DATE_FORMATTER);
+                    continue;
+                }
+            }
+            if (accountName != null && accountNumber != null && periodFrom != null && periodTo != null) {
                 break;
             }
         }
@@ -78,15 +95,23 @@ public class ProfitAndLossStatementParser {
         if (accountNumber == null) {
             throw new IllegalStateException("Account number not found");
         }
+        if (periodFrom == null || periodTo == null) {
+            throw new IllegalStateException("Period not found");
+        }
 
         List<Transaction> transactions = parseProfitAndLossStatementDividendTransactions(lines);
 
-        TradingAccountTransactions tradingAccountTransactions = new TradingAccountTransactions();
-        tradingAccountTransactions.setAccountName(accountName);
-        tradingAccountTransactions.setAccountNumber(accountNumber);
-        tradingAccountTransactions.setTransactions(transactions);
-
-        return tradingAccountTransactions;
+        PortfolioPeriod portfolioPeriod;
+        {
+            portfolioPeriod = new PortfolioPeriod();
+            portfolioPeriod.setAccountName(accountName);
+            portfolioPeriod.setAccountNumber(accountNumber);
+            portfolioPeriod.setPeriodFrom(periodFrom);
+            portfolioPeriod.setPeriodTo(periodTo);
+            portfolioPeriod.setTransactions(transactions);
+            portfolioPeriod.setPortfolioBreakdownSnapshots(new LinkedHashMap<>());
+        }
+        return portfolioPeriod;
     }
 
     private List<Transaction> parseProfitAndLossStatementDividendTransactions(List<String> lines) {
@@ -99,15 +124,15 @@ public class ProfitAndLossStatementParser {
                     continue;
                 }
                 if (!dividendsLinesStarted) {
-                    if (LazyHolder.PNL_STATEMENT_TRANSACTION_SECTION_START_PATTERN.matcher(line).matches()) {
+                    if (LazyHolder.TRANSACTION_SECTION_START_PATTERN.matcher(line).matches()) {
                         dividendsLinesStarted = true;
                     }
                     continue;
                 }
-                if (LazyHolder.PNL_STATEMENT_TRANSACTION_HEADER_PATTERN.matcher(line).matches()) {
+                if (LazyHolder.TRANSACTION_HEADER_PATTERN.matcher(line).matches()) {
                     continue;
                 }
-                if (LazyHolder.PNL_STATEMENT_TRANSACTION_SECTION_END_PATTERN.matcher(line).matches()) {
+                if (LazyHolder.TRANSACTION_SECTION_END_PATTERN.matcher(line).matches()) {
                     break;
                 }
 

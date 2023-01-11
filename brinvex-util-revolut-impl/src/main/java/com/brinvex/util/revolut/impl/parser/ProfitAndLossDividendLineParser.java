@@ -19,31 +19,32 @@ import com.brinvex.util.revolut.api.model.Currency;
 import com.brinvex.util.revolut.api.model.Transaction;
 import com.brinvex.util.revolut.api.model.TransactionType;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.brinvex.util.revolut.impl.parser.ParseUtil.parseMoney;
+
 public class ProfitAndLossDividendLineParser {
 
     private static class LazyHolder {
 
-        private static final Pattern TRANSACTION_DATE_SYMBOL_TYPE_PATTERN = Pattern.compile(
+        private static final Pattern LINE_PATTERN = Pattern.compile(
                 "(?<date>\\d{4}-\\d{2}-\\d{2})" +
                 "\\s+(?<symbol>\\S+)" +
                 "\\s+(?<securityName>.+)" +
                 "\\s+(?<isin>\\S{12})" +
                 "\\s+(?<country>\\S{2}+)" +
-                "\\s+(?<grossAmount>-?\\$(\\d+,)?\\d+(\\.\\d+)?)" +
-                "\\s+(?<withholdingTax>-?\\$(\\d+,)?\\d+(\\.\\d+)?)" +
-                "\\s+(?<netAmount>-?\\$(\\d+,)?\\d+(\\.\\d+)?)"
+                "\\s+(?<grossAmount>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<withholdingTax>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<netAmount>-?\\$(\\d+,)*\\d+(\\.\\d+)?)"
         );
     }
 
     public Transaction parseProfitAndLossDividendLine(String line) {
 
-        Matcher matcher = LazyHolder.TRANSACTION_DATE_SYMBOL_TYPE_PATTERN.matcher(line);
+        Matcher matcher = LazyHolder.LINE_PATTERN.matcher(line);
         boolean matchFound = matcher.find();
         if (!matchFound) {
             throw new IllegalStateException(String.format("Could not parse dividend line: '%s'", line));
@@ -59,24 +60,13 @@ public class ProfitAndLossDividendLineParser {
         dividendTransaction.setCountry(matcher.group("country"));
         dividendTransaction.setQuantity(null);
         dividendTransaction.setPrice(null);
-        dividendTransaction.setGrossAmount(parserBigDecimal(matcher.group("grossAmount")));
-        dividendTransaction.setWithholdingTax(parserBigDecimal(matcher.group("withholdingTax")));
-        dividendTransaction.setValue(parserBigDecimal(matcher.group("netAmount")));
+        dividendTransaction.setGrossAmount(parseMoney(matcher.group("grossAmount")));
+        dividendTransaction.setWithholdingTax(parseMoney(matcher.group("withholdingTax")));
+        dividendTransaction.setValue(parseMoney(matcher.group("netAmount")));
         dividendTransaction.setFees(null);
         dividendTransaction.setCommission(null);
         return dividendTransaction;
     }
-
-    private BigDecimal parserBigDecimal(String s) {
-        if (s == null || s.isBlank()) {
-            return null;
-        }
-        String normalized = s.trim()
-                .replace(",", "")
-                .replace("$", "");
-        return new BigDecimal(normalized);
-    }
-
 }
 
 
