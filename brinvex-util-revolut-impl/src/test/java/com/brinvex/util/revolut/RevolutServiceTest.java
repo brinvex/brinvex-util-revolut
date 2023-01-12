@@ -20,6 +20,7 @@ import com.brinvex.util.revolut.api.model.Holding;
 import com.brinvex.util.revolut.api.model.PortfolioBreakdown;
 import com.brinvex.util.revolut.api.model.PortfolioPeriod;
 import com.brinvex.util.revolut.api.model.Transaction;
+import com.brinvex.util.revolut.api.model.TransactionSide;
 import com.brinvex.util.revolut.api.model.TransactionType;
 import com.brinvex.util.revolut.api.service.RevolutService;
 import com.brinvex.util.revolut.api.service.RevolutServiceFactory;
@@ -32,7 +33,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -51,10 +54,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RevolutServiceTest {
 
     private final RevolutService revolutSvc = RevolutServiceFactory.INSTANCE.getService();
-
-    public static void main(String[] args) {
-
-    }
 
     @Test
     void parseTradingAccountTransactions_oneTradingAccountStatement() {
@@ -265,6 +264,46 @@ class RevolutServiceTest {
                                 }
                             }
                         }));
+    }
+
+    @Test
+    void consolidate_unitPrice() {
+
+        LocalDate now = LocalDate.now();
+        BigDecimal quantity = new BigDecimal("500");
+        BigDecimal declaredPrice = new BigDecimal("1.67");
+        BigDecimal exactPrice = new BigDecimal("1.6688");
+        BigDecimal value = new BigDecimal("835.48");
+        BigDecimal fees = BigDecimal.ZERO;
+        BigDecimal commission = new BigDecimal("1.08");
+
+        PortfolioPeriod ptf = new PortfolioPeriod();
+        ptf.setAccountNumber("test");
+        ptf.setAccountName("test");
+        ptf.setPeriodFrom(now);
+        ptf.setPeriodTo(now);
+        Transaction tran;
+        {
+            tran = new Transaction();
+            tran.setType(TransactionType.TRADE_MARKET);
+            tran.setSide(TransactionSide.BUY);
+            tran.setQuantity(quantity);
+            tran.setPrice(declaredPrice);
+            tran.setValue(value);
+            tran.setFees(fees);
+            tran.setCommission(commission);
+        }
+        ptf.setTransactions(List.of(tran));
+
+        PortfolioPeriod consolidatedPtf = revolutSvc.consolidate(List.of(ptf)).values().iterator().next();
+
+        Transaction consTran = consolidatedPtf.getTransactions().get(0);
+        assertEquals(declaredPrice, consTran.getPrice().setScale(2, RoundingMode.HALF_UP));
+        assertEquals(0, exactPrice.compareTo(consTran.getPrice()));
+        assertEquals(value, consTran.getValue());
+        assertEquals(fees, consTran.getFees());
+        assertEquals(commission, consTran.getCommission());
+
     }
 
     private void doIfFileExists(String filePath, Consumer<InputStream> test) {
