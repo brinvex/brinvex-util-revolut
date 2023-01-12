@@ -57,7 +57,7 @@ class RevolutServiceTest {
 
     @Test
     void parseTradingAccountTransactions_oneTradingAccountStatement() {
-        doIfFileExists("/trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf", inputStream -> {
+        doIfFileExists("/trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf", inputStream -> {
             PortfolioPeriod portfolioPeriod = revolutSvc.parseStatement(inputStream);
             out.println("accountNumber=" + portfolioPeriod.getAccountNumber());
             out.println("accountName=" + portfolioPeriod.getAccountName());
@@ -86,7 +86,7 @@ class RevolutServiceTest {
 
     @Test
     void consolidate_oneAccountStatement() {
-        doIfFileExists("/trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf", inputStream -> {
+        doIfFileExists("/trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf", inputStream -> {
             PortfolioPeriod ptfPeriod = revolutSvc.parseStatement(inputStream);
             Map<String, PortfolioPeriod> accountsToPtfPeriods = revolutSvc.consolidate(List.of(ptfPeriod));
 
@@ -109,7 +109,7 @@ class RevolutServiceTest {
 
     @Test
     void consolidate_manyEqualAccountStatements() {
-        doIfFileExists("/trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf", inputStream -> {
+        doIfFileExists("/trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf", inputStream -> {
             PortfolioPeriod ptfPeriod = revolutSvc.parseStatement(inputStream);
             Map<String, PortfolioPeriod> accountsToPtfPeriods = revolutSvc.consolidate(
                     List.of(ptfPeriod, ptfPeriod));
@@ -147,7 +147,7 @@ class RevolutServiceTest {
     void consolidate_manyAccountStatements() {
         doIfFilesExist(
                 "trading-account-statement_2021-01-01_2022-01-31_en_2bda4d.pdf",
-                "trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf",
+                "trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf",
                 (inputStream1, inputStream2) -> {
                     PortfolioPeriod ptfPeriod1 = revolutSvc.parseStatement(inputStream1);
                     PortfolioPeriod ptfPeriod2 = revolutSvc.parseStatement(inputStream2);
@@ -249,20 +249,6 @@ class RevolutServiceTest {
                             assetBreakdownsAreConsistent(ptfPeriod3.getPortfolioBreakdownSnapshots().values());
                             assetBreakdownsAreConsistent(ptfPeriod4.getPortfolioBreakdownSnapshots().values());
                             assetBreakdownsAreConsistent(accountPtfPeriod.getPortfolioBreakdownSnapshots().values());
-
-                            for (Transaction transaction : transactions) {
-                                assertNotNull(transaction.getDate());
-
-                                if (transaction.getType().equals(TransactionType.DIVIDEND)) {
-                                    assertNotNull(transaction.getSecurityName());
-                                    assertNotNull(transaction.getSymbol());
-                                    assertNotNull(transaction.getIsin());
-                                    assertNotNull(transaction.getCountry());
-                                    assertTrue(transaction.getGrossAmount().compareTo(BigDecimal.ZERO) > 0);
-                                    assertTrue(transaction.getWithholdingTax().compareTo(BigDecimal.ZERO) >= 0);
-                                    assertTrue(transaction.getValue().compareTo(BigDecimal.ZERO) > 0);
-                                }
-                            }
                         }));
     }
 

@@ -145,9 +145,7 @@ public class RevolutServiceImpl implements RevolutService {
                     if (tranType.equals(TransactionType.DIVIDEND)) {
                         Object divTranKey = constructDividendTransactionIdentityKey(tran);
                         Transaction oldDivTran = dividendTransactions.get(divTranKey);
-                        if (oldDivTran == null) {
-                            dividendTransactions.put(divTranKey, tran);
-                        } else {
+                        if (oldDivTran != null) {
                             if (tran.getDate().toLocalTime().equals(LocalTime.MIN)) {
                                 tran.setDate(oldDivTran.getDate());
                             }
@@ -161,6 +159,7 @@ public class RevolutServiceImpl implements RevolutService {
                             tran.setFees(coalesce(tran.getFees(), oldDivTran.getFees()));
                             tran.setCommission(coalesce(tran.getCommission(), oldDivTran.getCommission()));
                         }
+                        dividendTransactions.put(divTranKey, tran);
                     } else if (tranType.equals(TransactionType.TRADE_MARKET)) {
                         TransactionSide side = tran.getSide();
                         BigDecimal quantity = tran.getQuantity();
@@ -237,8 +236,7 @@ public class RevolutServiceImpl implements RevolutService {
                 transaction.getSide(),
                 setScale(transaction.getValue(), 2),
                 setScale(transaction.getFees(), 2),
-                setScale(transaction.getCommission(), 2),
-                transaction.getCurrency()
+                setScale(transaction.getCommission(), 2)
         );
     }
 
@@ -246,8 +244,7 @@ public class RevolutServiceImpl implements RevolutService {
         return Arrays.asList(
                 transaction.getDate().toLocalDate(),
                 transaction.getSymbol(),
-                setScale(transaction.getValue(), 2),
-                transaction.getCurrency()
+                setScale(transaction.getValue(), 2)
         );
     }
 
