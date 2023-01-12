@@ -146,6 +146,7 @@ public class RevolutServiceImpl implements RevolutService {
                         Object divTranKey = constructDividendTransactionIdentityKey(tran);
                         Transaction oldDivTran = dividendTransactions.get(divTranKey);
                         if (oldDivTran != null) {
+                            transactions.remove(constructTransactionIdentityKey(oldDivTran));
                             if (tran.getDate().toLocalTime().equals(LocalTime.MIN)) {
                                 tran.setDate(oldDivTran.getDate());
                             }

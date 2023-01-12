@@ -34,14 +34,19 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.lang.System.out;
 import static java.util.Comparator.comparing;
@@ -52,6 +57,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RevolutServiceTest {
+
+    private static final String TEST_DATA_FOLDER = "c:/prj/brinvex/brinvex-dev1/test-data/brinvex-util-revolut-impl";
 
     private final RevolutService revolutSvc = RevolutServiceFactory.INSTANCE.getService();
 
@@ -292,9 +299,47 @@ class RevolutServiceTest {
 
     }
 
+    @Test
+    void consolidate_dividendDuplicates() {
+        List<PortfolioPeriod> periods = parseAllFilesInFolder();
+        Map<String, PortfolioPeriod> consolidatedPtfPeriods = revolutSvc.consolidate(periods);
+        for (Map.Entry<String, PortfolioPeriod> e : consolidatedPtfPeriods.entrySet()) {
+            PortfolioPeriod portfolioPeriod = e.getValue();
+
+            Map<String, Map<LocalDate, Transaction>> dividends = new LinkedHashMap<>();
+            for (Transaction t : portfolioPeriod.getTransactions()) {
+                if (!t.getType().equals(TransactionType.DIVIDEND)) {
+                    continue;
+                }
+                String symbol = t.getSymbol();
+                LocalDate date = t.getDate().toLocalDate();
+                Transaction oldDiv = dividends.computeIfAbsent(symbol, k -> new LinkedHashMap<>()).put(date, t);
+                assertNull(oldDiv, () -> String.format("\n%s\n%s", oldDiv, t));
+            }
+        }
+    }
+
+    private List<PortfolioPeriod> parseAllFilesInFolder() {
+        Path dir = Paths.get(TEST_DATA_FOLDER);
+        List<PortfolioPeriod> periods = new ArrayList<>();
+        try (Stream<Path> paths = Files.walk(dir)) {
+            paths
+                    .filter(Files::isRegularFile)
+                    .forEach(p -> {
+                        try (InputStream fis = new FileInputStream(p.toFile())) {
+                            periods.add(revolutSvc.parseStatement(fis));
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    });
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return periods;
+    }
+
     private void doIfFileExists(String filePath, Consumer<InputStream> test) {
-        String testDataFolder = "c:/prj/brinvex/brinvex-dev1/test-data/brinvex-util-revolut-impl";
-        File file = Path.of(testDataFolder, filePath).toFile();
+        File file = Path.of(TEST_DATA_FOLDER, filePath).toFile();
         if (file.exists() && file.isFile()) {
             try (InputStream is = new FileInputStream(file)) {
                 test.accept(is);
