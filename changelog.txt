@@ -1,3 +1,8 @@
+Version 2.0.2 - 2023-01-12
+================================================================================
+Dividend grossAmount should be not null if it is available at least in one statement Lukas A minute ago
+
+Increase traded price precision/scale
 Version 2.0.1 - 2023-01-12
 ================================================================================
 Increase traded price precision/scale
