@@ -16,10 +16,12 @@
 package com.brinvex.util.revolut.impl;
 
 import com.brinvex.util.revolut.api.model.PortfolioBreakdown;
+import com.brinvex.util.revolut.api.model.TransactionSide;
 import com.brinvex.util.revolut.api.service.RevolutService;
 import com.brinvex.util.revolut.api.model.PortfolioPeriod;
 import com.brinvex.util.revolut.api.model.Transaction;
 import com.brinvex.util.revolut.api.model.TransactionType;
+import com.brinvex.util.revolut.api.service.exception.InvalidNumbersException;
 import com.brinvex.util.revolut.api.service.exception.NonContinuousPeriodsException;
 import com.brinvex.util.revolut.api.service.exception.RevolutServiceException;
 import com.brinvex.util.revolut.impl.parser.AccountStatementParser;
@@ -40,7 +42,9 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import static java.math.BigDecimal.ZERO;
 import static java.util.Comparator.comparing;
+import static java.util.Optional.ofNullable;
 
 public class RevolutServiceImpl implements RevolutService {
 
@@ -128,36 +132,70 @@ public class RevolutServiceImpl implements RevolutService {
                 result.setPeriodTo(periodTo);
             }
 
-            breakdowns.putAll(portfolioPeriod.getPortfolioBreakdownSnapshots());
+            Map<LocalDate, PortfolioBreakdown> breakdownSnapshots = portfolioPeriod.getPortfolioBreakdownSnapshots();
+            if (breakdownSnapshots != null) {
+                breakdowns.putAll(breakdownSnapshots);
+            }
 
             List<Transaction> periodTransactions = portfolioPeriod.getTransactions();
             if (periodTransactions != null) {
-                for (Transaction transaction : periodTransactions) {
-                    Object transactionIdentityKey = constructTransactionIdentityKey(transaction);
+                for (Transaction tran : periodTransactions) {
 
-                    if (transaction.getType().equals(TransactionType.DIVIDEND)) {
-                        Object dividendTransactionIdentityKey = constructDividendTransactionIdentityKey(transaction);
-                        Transaction oldDivTransaction = dividendTransactions.get(dividendTransactionIdentityKey);
-                        if (oldDivTransaction == null) {
-                            dividendTransactions.put(dividendTransactionIdentityKey, transaction);
-                            transactions.put(transactionIdentityKey, transaction);
+                    TransactionType tranType = tran.getType();
+                    if (tranType.equals(TransactionType.DIVIDEND)) {
+                        Object divTranKey = constructDividendTransactionIdentityKey(tran);
+                        Transaction oldDivTran = dividendTransactions.get(divTranKey);
+                        if (oldDivTran == null) {
+                            dividendTransactions.put(divTranKey, tran);
                         } else {
-                            if (oldDivTransaction.getDate().toLocalTime().equals(LocalTime.MIN)) {
-                                oldDivTransaction.setDate(transaction.getDate());
+                            if (tran.getDate().toLocalTime().equals(LocalTime.MIN)) {
+                                tran.setDate(oldDivTran.getDate());
                             }
-                            oldDivTransaction.setSecurityName(coalesce(oldDivTransaction.getSecurityName(), transaction.getSecurityName()));
-                            oldDivTransaction.setIsin(coalesce(oldDivTransaction.getIsin(), transaction.getIsin()));
-                            oldDivTransaction.setCountry(coalesce(oldDivTransaction.getCountry(), transaction.getCountry()));
-                            oldDivTransaction.setCurrency(coalesce(oldDivTransaction.getCurrency(), transaction.getCurrency()));
-                            oldDivTransaction.setGrossAmount(coalesce(oldDivTransaction.getGrossAmount(), transaction.getGrossAmount()));
-                            oldDivTransaction.setWithholdingTax(coalesce(oldDivTransaction.getWithholdingTax(), transaction.getWithholdingTax()));
-                            oldDivTransaction.setValue(coalesce(oldDivTransaction.getValue(), transaction.getValue()));
-                            oldDivTransaction.setFees(coalesce(oldDivTransaction.getFees(), transaction.getFees()));
-                            oldDivTransaction.setCommission(coalesce(oldDivTransaction.getFees(), transaction.getCommission()));
+                            tran.setSecurityName(coalesce(tran.getSecurityName(), oldDivTran.getSecurityName()));
+                            tran.setIsin(coalesce(tran.getIsin(), oldDivTran.getIsin()));
+                            tran.setCountry(coalesce(tran.getCountry(), oldDivTran.getCountry()));
+                            tran.setCurrency(coalesce(tran.getCurrency(), oldDivTran.getCurrency()));
+                            tran.setGrossAmount(coalesce(tran.getGrossAmount(), oldDivTran.getGrossAmount()));
+                            tran.setWithholdingTax(coalesce(tran.getWithholdingTax(), oldDivTran.getWithholdingTax()));
+                            tran.setValue(coalesce(tran.getValue(), oldDivTran.getValue()));
+                            tran.setFees(coalesce(tran.getFees(), oldDivTran.getFees()));
+                            tran.setCommission(coalesce(tran.getCommission(), oldDivTran.getCommission()));
                         }
-                    } else {
-                        transactions.put(transactionIdentityKey, transaction);
+                    } else if (tranType.equals(TransactionType.TRADE_MARKET)) {
+                        TransactionSide side = tran.getSide();
+                        BigDecimal quantity = tran.getQuantity();
+                        BigDecimal fees = ofNullable(tran.getFees()).orElse(ZERO);
+                        BigDecimal commission = ofNullable(tran.getCommission()).orElse(ZERO);
+                        if (fees.compareTo(ZERO) < 0) {
+                            throw new InvalidNumbersException(String.format("Commission can not be negative: %s", tran));
+                        }
+                        if (commission.compareTo(ZERO) < 0) {
+                            throw new InvalidNumbersException(String.format("Fees can not be negative: %s", tran));
+                        }
+                        BigDecimal feesAndCommission = fees.add(commission);
+
+                        BigDecimal tradedValue;
+                        if (side == TransactionSide.BUY) {
+                            tradedValue = tran.getValue().subtract(feesAndCommission);
+                        } else if (side == TransactionSide.SELL) {
+                            tradedValue = tran.getValue().add(feesAndCommission);
+                        } else {
+                            throw new AssertionError(side);
+                        }
+                        BigDecimal tradedPrice = tradedValue.divide(quantity, 8, RoundingMode.HALF_UP);
+
+                        BigDecimal declaredPrice = tran.getPrice();
+                        BigDecimal delta = tradedPrice.subtract(declaredPrice).abs();
+                        if (delta.compareTo(new BigDecimal("0.005")) > 0) {
+                            throw new InvalidNumbersException(String.format(
+                                    "Suspicious delta=%s calculated from price=%s, quantity=%s, fees=%s, commission=%s, %s",
+                                    delta, declaredPrice, quantity, fees, commission,  tran));
+                        }
+                        tran.setPrice(tradedPrice);
                     }
+
+                    Object tranKey = constructTransactionIdentityKey(tran);
+                    transactions.put(tranKey, tran);
                 }
             }
         }
@@ -194,12 +232,12 @@ public class RevolutServiceImpl implements RevolutService {
                 transaction.getType(),
                 transaction.getDate(),
                 transaction.getSymbol(),
-                normalizeBigDecimalScale(transaction.getQuantity(), 8),
-                normalizeBigDecimalScale(transaction.getPrice(), 2),
+                setScale(transaction.getQuantity(), 8),
+                setScale(transaction.getPrice(), 2),
                 transaction.getSide(),
-                normalizeBigDecimalScale(transaction.getValue(), 2),
-                normalizeBigDecimalScale(transaction.getFees(), 2),
-                normalizeBigDecimalScale(transaction.getCommission(), 2),
+                setScale(transaction.getValue(), 2),
+                setScale(transaction.getFees(), 2),
+                setScale(transaction.getCommission(), 2),
                 transaction.getCurrency()
         );
     }
@@ -208,12 +246,12 @@ public class RevolutServiceImpl implements RevolutService {
         return Arrays.asList(
                 transaction.getDate().toLocalDate(),
                 transaction.getSymbol(),
-                normalizeBigDecimalScale(transaction.getValue(), 2),
+                setScale(transaction.getValue(), 2),
                 transaction.getCurrency()
         );
     }
 
-    private BigDecimal normalizeBigDecimalScale(BigDecimal d, int newScale) {
+    private BigDecimal setScale(BigDecimal d, int newScale) {
         return d == null ? null : d.setScale(newScale, RoundingMode.HALF_UP);
     }
 
