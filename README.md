@@ -1,8 +1,8 @@
-# Brinvex-Util-Revolut
+# Brinvex Revolut Java API
 
 ## Introduction
 
-_Brinvex-Util-Revolut_ is a compact Java library which enables developers 
+_Brinvex Revolut Java API_ is a compact Java library which enables developers 
 to easily extract and work with data from Revolut trading account reports.
 
 Working with Revolut trading account files is often a tedious work. 
