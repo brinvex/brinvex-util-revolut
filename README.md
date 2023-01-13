@@ -22,12 +22,12 @@ Revolut report formats and makes them available in simple consistent form for fu
 <dependency>
     <groupId>com.brinvex.util</groupId>
     <artifactId>brinvex-util-revolut-api</artifactId>
-    <version>3.0.1</version>
+    <version>3.1.0</version>
 </dependency>
 <dependency>
     <groupId>com.brinvex.util</groupId>
     <artifactId>brinvex-util-revolut-impl</artifactId>
-    <version>3.0.1</version>
+    <version>3.1.0</version>
     <scope>runtime</scope>
 </dependency>
 ````
