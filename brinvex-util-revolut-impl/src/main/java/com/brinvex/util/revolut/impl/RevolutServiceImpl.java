@@ -21,7 +21,7 @@ import com.brinvex.util.revolut.api.model.Transaction;
 import com.brinvex.util.revolut.api.model.TransactionType;
 import com.brinvex.util.revolut.api.model.TransactionSide;
 import com.brinvex.util.revolut.api.service.RevolutService;
-import com.brinvex.util.revolut.api.service.exception.InvalidNumbersException;
+import com.brinvex.util.revolut.api.service.exception.InvalidDataException;
 import com.brinvex.util.revolut.api.service.exception.InvalidStatementException;
 import com.brinvex.util.revolut.api.service.exception.RevolutServiceException;
 import com.brinvex.util.revolut.impl.parser.AccountStatementParser;
@@ -188,10 +188,10 @@ public class RevolutServiceImpl implements RevolutService {
                         BigDecimal fees = ofNullable(tran.getFees()).orElse(ZERO);
                         BigDecimal commission = ofNullable(tran.getCommission()).orElse(ZERO);
                         if (fees.compareTo(ZERO) < 0) {
-                            throw new InvalidNumbersException(String.format("Commission can not be negative: %s", tran));
+                            throw new InvalidDataException(String.format("Commission can not be negative: %s", tran));
                         }
                         if (commission.compareTo(ZERO) < 0) {
-                            throw new InvalidNumbersException(String.format("Fees can not be negative: %s", tran));
+                            throw new InvalidDataException(String.format("Fees can not be negative: %s", tran));
                         }
                         BigDecimal feesAndCommission = fees.add(commission);
 
@@ -208,7 +208,7 @@ public class RevolutServiceImpl implements RevolutService {
                         BigDecimal declaredPrice = tran.getPrice();
                         BigDecimal delta = tradedPrice.subtract(declaredPrice).abs();
                         if (delta.compareTo(new BigDecimal("0.005")) > 0) {
-                            throw new InvalidNumbersException(String.format(
+                            throw new InvalidDataException(String.format(
                                     "Suspicious delta=%s calculated from price=%s, quantity=%s, fees=%s, commission=%s, %s",
                                     delta, declaredPrice, quantity, fees, commission, tran));
                         }
