@@ -22,37 +22,26 @@ Revolut report formats and makes them available in simple consistent form for fu
 <dependency>
     <groupId>com.brinvex.util</groupId>
     <artifactId>brinvex-util-revolut-api</artifactId>
-    <version>2.0.3</version>
+    <version>3.0.0</version>
 </dependency>
 <dependency>
     <groupId>com.brinvex.util</groupId>
     <artifactId>brinvex-util-revolut-impl</artifactId>
-    <version>2.0.3</version>
+    <version>3.0.0</version>
     <scope>runtime</scope>
 </dependency>
 ````
-- Parse individual _trading-account-statement_ or _profit-and-loss-statement_ PDF files. 
+- Process many _trading-account-statement_ or _profit-and-loss-statement_ PDF files and enjoy the result 
 ````
 RevolutService revolutSvc = RevolutServiceFactory.INSTANCE.getService(); 
 
-FileInputStream fis1 = new FileInputStream("c:/tmp/trading-account-statement-2021.pdf");
-PortfolioPeriod p1 = revolutSvc.parseStatement(fis1);
-
-FileInputStream fis2 = new FileInputStream("c:/tmp/trading-account-statement-2022.pdf");
-PortfolioPeriod p2 = revolutSvc.parseStatement(fis2);
-
-FileInputStream fis3 = new FileInputStream("c:/tmp/pnl-statement-2021.pdf")
-PortfolioPeriod p3 = revolutSvc.parseStatement(fis3);
-
-FileInputStream fis4 = new FileInputStream("c:/tmp/pnl-statement-2022.pdf")
-PortfolioPeriod p4 = revolutSvc.parseStatement(fis4);   
+PortfolioPeriod ptfPeriod = revolutSvc.processStatements(List.of(
+    "c:/tmp/trading-account-statement-2021.pdf",    
+    "c:/tmp/trading-account-statement-2022.pdf",    
+    "c:/tmp/pnl-statement-2021.pdf",    
+    "c:/tmp/pnl-statement-2022.pdf",    
+));
 ````
-- Consolidate all PortfolioPeriod objects into one  
-
-````
-Map<String, PortfolioPeriod> ptfs = revolutSvc.consolidate(List.of(p1, p2, p3, p4));
-````
-- Enjoy the result and use it as you need
 
 ![Datamodel diagram](diagrams/datamodel_2.png)
 

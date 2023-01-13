@@ -16,19 +16,21 @@
 package com.brinvex.util.revolut.impl;
 
 import com.brinvex.util.revolut.api.model.PortfolioBreakdown;
-import com.brinvex.util.revolut.api.model.TransactionSide;
-import com.brinvex.util.revolut.api.service.RevolutService;
 import com.brinvex.util.revolut.api.model.PortfolioPeriod;
 import com.brinvex.util.revolut.api.model.Transaction;
 import com.brinvex.util.revolut.api.model.TransactionType;
+import com.brinvex.util.revolut.api.model.TransactionSide;
+import com.brinvex.util.revolut.api.service.RevolutService;
 import com.brinvex.util.revolut.api.service.exception.InvalidNumbersException;
-import com.brinvex.util.revolut.api.service.exception.NonContinuousPeriodsException;
+import com.brinvex.util.revolut.api.service.exception.InvalidStatementException;
 import com.brinvex.util.revolut.api.service.exception.RevolutServiceException;
 import com.brinvex.util.revolut.impl.parser.AccountStatementParser;
 import com.brinvex.util.revolut.impl.parser.ProfitAndLossStatementParser;
 import com.brinvex.util.revolut.impl.pdfreader.PdfReader;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -36,11 +38,14 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.math.BigDecimal.ZERO;
 import static java.util.Comparator.comparing;
@@ -55,7 +60,45 @@ public class RevolutServiceImpl implements RevolutService {
     private final ProfitAndLossStatementParser profitAndLossStatementParser = new ProfitAndLossStatementParser();
 
     @Override
-    public PortfolioPeriod parseStatement(InputStream inputStream) {
+    public PortfolioPeriod processStatements(Stream<Supplier<InputStream>> statementInputStreams) {
+        List<PortfolioPeriod> periods = statementInputStreams
+                .map(inputStreamSupplier -> {
+                    try (InputStream is = inputStreamSupplier.get()) {
+                        return parseStatement(is);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                })
+                .collect(Collectors.toList());
+        if (periods.isEmpty()) {
+            return null;
+        }
+        Iterator<List<PortfolioPeriod>> petfPeriodPerAccountIterator = groupPortfolioPeriodsByAccount(periods).values().iterator();
+        List<PortfolioPeriod> portfolioPeriods = petfPeriodPerAccountIterator.next();
+        PortfolioPeriod somePtfPeriod = portfolioPeriods.get(0);
+        if (petfPeriodPerAccountIterator.hasNext()) {
+            PortfolioPeriod otherPtfPeriod = petfPeriodPerAccountIterator.next().get(0);
+            throw new InvalidStatementException(String.format("Unexpected multiple accounts: %s/%s, %s/%s",
+                    somePtfPeriod.getAccountNumber(),
+                    somePtfPeriod.getAccountName(),
+                    otherPtfPeriod.getAccountNumber(),
+                    otherPtfPeriod.getAccountName()
+            ));
+        }
+
+        try {
+            return consolidateAccountPortfolioPeriods(portfolioPeriods);
+        } catch (Exception ex) {
+            if (ex instanceof RevolutServiceException) {
+                throw ex;
+            } else {
+                throw new RuntimeException(String.format(
+                        "account=%s/%s", somePtfPeriod.getAccountNumber(), somePtfPeriod.getAccountName()), ex);
+            }
+        }
+    }
+
+    private PortfolioPeriod parseStatement(InputStream inputStream) {
 
         List<String> lines = pdfReader.readPdfLines(inputStream);
 
@@ -74,28 +117,6 @@ public class RevolutServiceImpl implements RevolutService {
         }
 
         return portfolioPeriod;
-    }
-
-    @Override
-    public Map<String, PortfolioPeriod> consolidate(Collection<PortfolioPeriod> portfolioPeriods) {
-        Map<String, List<PortfolioPeriod>> ptfPeriodsByAccount = groupPortfolioPeriodsByAccount(portfolioPeriods);
-
-        Map<String, PortfolioPeriod> consolidatedPtfPeriods = new LinkedHashMap<>();
-        for (Map.Entry<String, List<PortfolioPeriod>> e : ptfPeriodsByAccount.entrySet()) {
-            String accountNumber = e.getKey();
-            List<PortfolioPeriod> accountPortfolioPeriods = e.getValue();
-            try {
-                PortfolioPeriod portfolioPeriod = consolidateAccountPortfolioPeriods(accountPortfolioPeriods);
-                consolidatedPtfPeriods.put(accountNumber, portfolioPeriod);
-            } catch (Exception ex) {
-                if (ex instanceof RevolutServiceException) {
-                    throw ex;
-                } else {
-                    throw new IllegalArgumentException(String.format("accountNumber=%s", accountNumber), ex);
-                }
-            }
-        }
-        return consolidatedPtfPeriods;
     }
 
     private PortfolioPeriod consolidateAccountPortfolioPeriods(List<PortfolioPeriod> accountPortfolioPeriods) {
@@ -124,9 +145,9 @@ public class RevolutServiceImpl implements RevolutService {
 
             LocalDate nextPeriodFrom = result.getPeriodTo().plusDays(1);
             if (nextPeriodFrom.isBefore(periodFrom)) {
-                throw new NonContinuousPeriodsException(String.format(
+                throw new InvalidStatementException(String.format(
                         "accountNumber=%s, accountName='%s', missingPortfolioPeriod='%s - %s'",
-                            accountNumber, accountName, nextPeriodFrom, periodFrom.minusDays(1)));
+                        accountNumber, accountName, nextPeriodFrom, periodFrom.minusDays(1)));
             }
             if (periodTo.isAfter(result.getPeriodTo())) {
                 result.setPeriodTo(periodTo);
@@ -189,7 +210,7 @@ public class RevolutServiceImpl implements RevolutService {
                         if (delta.compareTo(new BigDecimal("0.005")) > 0) {
                             throw new InvalidNumbersException(String.format(
                                     "Suspicious delta=%s calculated from price=%s, quantity=%s, fees=%s, commission=%s, %s",
-                                    delta, declaredPrice, quantity, fees, commission,  tran));
+                                    delta, declaredPrice, quantity, fees, commission, tran));
                         }
                         tran.setPrice(tradedPrice);
                     }

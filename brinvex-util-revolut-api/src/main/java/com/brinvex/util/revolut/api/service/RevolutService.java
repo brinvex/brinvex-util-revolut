@@ -17,36 +17,50 @@ package com.brinvex.util.revolut.api.service;
 
 import com.brinvex.util.revolut.api.model.PortfolioPeriod;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.Collection;
-import java.util.Map;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
- * An interface publishing methods for parsing and working with various Revolut data.
- * An implementation class instance should be retrieved using {@link RevolutServiceFactory#getService()} ()}.
+ * An interface publishing methods for working with Revolut data.
+ * An implementation class instance should be retrieved using {@link RevolutServiceFactory#getService()}.
  * The factory as well as the default implementation instance is a thread-safe singleton.
  */
 public interface RevolutService {
 
     /**
-     * Parses Revolut PDF statement into {@link PortfolioPeriod} object.
-     *
-     * @param inputStream InputStream of one pdf report file
-     * @return {@link PortfolioPeriod} data object, never null
-     */
-    PortfolioPeriod parseStatement(InputStream inputStream);
-
-    /**
-     * Consolidates many various portfolio periods into one-per-account continuous period.
+     * Process given Revolut statements into a {@link PortfolioPeriod} data object.
      * <ul>
-     *  <li>groups portfolio periods by accountNumber</li>
      *  <li>sorts, deduplicates and merges transactions</li>
      *  <li>sorts and deduplicates portfolio breakdown snapshots</li>
      * </ul>
+     * All given statements must belong to one account number.
      *
-     * @param portfolioPeriods collection of {@link PortfolioPeriod} data objects to consolidate
-     * @return map pairing accountNumber to consolidated continuous {@link PortfolioPeriod}
+     * @param statementInputStreams stream of statement inputStreams
+     * @return {@link PortfolioPeriod}
      */
-    Map<String, PortfolioPeriod> consolidate(Collection<PortfolioPeriod> portfolioPeriods);
+    PortfolioPeriod processStatements(Stream<Supplier<InputStream>> statementInputStreams);
+
+    /**
+     * See {@link RevolutService#processStatements(Stream)}
+     */
+    default PortfolioPeriod processStatements(Collection<String> statementFilePaths) {
+        return processStatements(statementFilePaths
+                .stream()
+                .map(File::new)
+                .map(f -> () -> {
+                    try {
+                        return new FileInputStream(f);
+                    } catch (FileNotFoundException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                }));
+
+    }
 
 }

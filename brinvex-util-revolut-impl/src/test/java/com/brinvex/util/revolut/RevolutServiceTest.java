@@ -20,31 +20,25 @@ import com.brinvex.util.revolut.api.model.Holding;
 import com.brinvex.util.revolut.api.model.PortfolioBreakdown;
 import com.brinvex.util.revolut.api.model.PortfolioPeriod;
 import com.brinvex.util.revolut.api.model.Transaction;
-import com.brinvex.util.revolut.api.model.TransactionSide;
 import com.brinvex.util.revolut.api.model.TransactionType;
 import com.brinvex.util.revolut.api.service.RevolutService;
 import com.brinvex.util.revolut.api.service.RevolutServiceFactory;
-import com.brinvex.util.revolut.api.service.exception.NonContinuousPeriodsException;
+import com.brinvex.util.revolut.api.service.exception.InvalidStatementException;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -63,321 +57,81 @@ class RevolutServiceTest {
     private final RevolutService revolutSvc = RevolutServiceFactory.INSTANCE.getService();
 
     @Test
-    void parseTradingAccountTransactions_oneTradingAccountStatement() {
-        doIfFileExists("/trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf", inputStream -> {
-            PortfolioPeriod portfolioPeriod = revolutSvc.parseStatement(inputStream);
-            out.println("accountNumber=" + portfolioPeriod.getAccountNumber());
-            out.println("accountName=" + portfolioPeriod.getAccountName());
+    void processStatements_parse() {
+        List<String> testFilePaths = getTestFilePaths();
+        if (!testFilePaths.isEmpty()) {
+            PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(testFilePaths);
+            assertNotNull(portfolioPeriod);
+            out.printf("%s/%s%n", portfolioPeriod.getAccountNumber(), portfolioPeriod.getAccountName());
             List<Transaction> transactions = portfolioPeriod.getTransactions();
             for (int i = 0, transactionsSize = transactions.size(); i < transactionsSize; i++) {
                 Transaction transaction = transactions.get(i);
-                out.printf("Parsed transaction[%s]: %s\n", i, transaction);
+                out.printf("[%s]: %s\n", i, transaction);
             }
-        });
+        }
     }
 
     @Test
-    void parseTradingAccountTransactions_oneProfitAndLossStatement() {
-        doIfFileExists("/profit-loss-statement/trading-pnl-statement_2021-01-01_2022-01-01_en-us_6e8044.pdf", inputStream -> {
-            PortfolioPeriod portfolioPeriod = revolutSvc.parseStatement(inputStream);
-            out.println("accountNumber=" + portfolioPeriod.getAccountNumber());
-            out.println("accountName=" + portfolioPeriod.getAccountName());
+    void processStatements_oneAccountStatement() {
+        List<String> testFilePaths = getTestFilePaths("trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf"::equals);
+        if (!testFilePaths.isEmpty()) {
+            PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(testFilePaths);
+
+            assertTrue(portfolioPeriod.getAccountNumber().startsWith("RE"));
+
             List<Transaction> transactions = portfolioPeriod.getTransactions();
-            for (int i = 0, transactionsSize = transactions.size(); i < transactionsSize; i++) {
-                Transaction transaction = transactions.get(i);
-                out.printf("Parsed transaction[%s]: %s\n", i, transaction);
-            }
-        });
-    }
 
-
-    @Test
-    void consolidate_oneAccountStatement() {
-        doIfFileExists("/trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf", inputStream -> {
-            PortfolioPeriod ptfPeriod = revolutSvc.parseStatement(inputStream);
-            Map<String, PortfolioPeriod> accountsToPtfPeriods = revolutSvc.consolidate(List.of(ptfPeriod));
-
-            assertEquals(1, accountsToPtfPeriods.size());
-            PortfolioPeriod accountPtfPeriod = accountsToPtfPeriods.values().iterator().next();
-
-            assertTrue(accountPtfPeriod.getAccountNumber().startsWith("RE"));
-
-            List<Transaction> transactions = accountPtfPeriod.getTransactions();
-            assertEquals(ptfPeriod.getTransactions().size(), transactions.size());
-
-            assertEquals(1, accountPtfPeriod.getPortfolioBreakdownSnapshots().size());
-            assetBreakdownsAreConsistent(accountPtfPeriod.getPortfolioBreakdownSnapshots().values());
+            assertEquals(1, portfolioPeriod.getPortfolioBreakdownSnapshots().size());
+            assetBreakdownsAreConsistent(portfolioPeriod.getPortfolioBreakdownSnapshots().values());
 
             assertTransactionsAreSorted(transactions);
             assertTransactionsAttributesAreConsistent(transactions);
-        });
+        }
     }
 
-
     @Test
-    void consolidate_manyEqualAccountStatements() {
-        doIfFileExists("/trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf", inputStream -> {
-            PortfolioPeriod ptfPeriod = revolutSvc.parseStatement(inputStream);
-            Map<String, PortfolioPeriod> accountsToPtfPeriods = revolutSvc.consolidate(
-                    List.of(ptfPeriod, ptfPeriod));
+    void processStatements_manyEqualAccountStatements() {
+        List<String> testFilePaths = getTestFilePaths("trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf"::equals);
+        if (!testFilePaths.isEmpty()) {
+            PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(List.of(testFilePaths.get(0), testFilePaths.get(0)));
 
-            assertEquals(1, accountsToPtfPeriods.size());
-            PortfolioPeriod accountPtfPeriod = accountsToPtfPeriods.values().iterator().next();
+            assertTrue(portfolioPeriod.getAccountNumber().startsWith("RE"));
 
-            assertTrue(accountPtfPeriod.getAccountNumber().startsWith("RE"));
+            List<Transaction> transactions = portfolioPeriod.getTransactions();
 
-            List<Transaction> transactions = accountPtfPeriod.getTransactions();
-            assertEquals(ptfPeriod.getTransactions().size(), transactions.size());
-
-            assertEquals(1, accountPtfPeriod.getPortfolioBreakdownSnapshots().size());
-            assetBreakdownsAreConsistent(accountPtfPeriod.getPortfolioBreakdownSnapshots().values());
+            assertEquals(1, portfolioPeriod.getPortfolioBreakdownSnapshots().size());
+            assetBreakdownsAreConsistent(portfolioPeriod.getPortfolioBreakdownSnapshots().values());
 
             assertTransactionsAreSorted(transactions);
-
             assertTransactionsAttributesAreConsistent(transactions);
-        });
-    }
-
-    @Test
-    void consolidate_nonContinuousPeriods() {
-        doIfFilesExist(
-                "trading-account-statement_2021-01-01_2021-12-31_en_b094bc.pdf",
-                "trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf",
-                (inputStream1, inputStream2) -> {
-                    PortfolioPeriod ptfPeriod1 = revolutSvc.parseStatement(inputStream1);
-                    PortfolioPeriod ptfPeriod2 = revolutSvc.parseStatement(inputStream2);
-                    assertThrows(NonContinuousPeriodsException.class, () -> revolutSvc.consolidate(List.of(ptfPeriod1, ptfPeriod2)));
-                });
-    }
-
-    @Test
-    void consolidate_manyAccountStatements() {
-        doIfFilesExist(
-                "trading-account-statement_2021-01-01_2022-01-31_en_2bda4d.pdf",
-                "trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf",
-                (inputStream1, inputStream2) -> {
-                    PortfolioPeriod ptfPeriod1 = revolutSvc.parseStatement(inputStream1);
-                    PortfolioPeriod ptfPeriod2 = revolutSvc.parseStatement(inputStream2);
-                    Map<String, PortfolioPeriod> accountsToPtfPeriods = revolutSvc.consolidate(List.of(ptfPeriod1, ptfPeriod2));
-
-                    assertEquals(1, accountsToPtfPeriods.size());
-                    PortfolioPeriod accountPtfPeriod = accountsToPtfPeriods.values().iterator().next();
-
-                    assertTrue(accountPtfPeriod.getAccountNumber().startsWith("RE"));
-
-                    List<Transaction> transactions = accountPtfPeriod.getTransactions();
-                    assertTrue(transactions.size() >= ptfPeriod1.getTransactions().size());
-                    assertTrue(transactions.size() >= ptfPeriod2.getTransactions().size());
-
-                    assertEquals(2, accountPtfPeriod.getPortfolioBreakdownSnapshots().size());
-                    assetBreakdownsAreConsistent(accountPtfPeriod.getPortfolioBreakdownSnapshots().values());
-
-                    assertTransactionsAreSorted(transactions);
-
-                    assertTransactionsAttributesAreConsistent(transactions);
-                });
-    }
-
-
-    @Test
-    void consolidate_manyProfitAndLosesStatements() {
-        doIfFilesExist(
-                "trading-pnl-statement_2021-01-01_2022-01-01_en-us_6e8044.pdf",
-                "trading-pnl-statement_2022-01-01_2023-01-01_en-us_b1efb2.pdf",
-                (inputStream1, inputStream2) -> {
-                    PortfolioPeriod ptfPeriod1 = revolutSvc.parseStatement(inputStream1);
-                    PortfolioPeriod ptfPeriod2 = revolutSvc.parseStatement(inputStream2);
-                    Map<String, PortfolioPeriod> accountsToPtfPeriods = revolutSvc.consolidate(List.of(ptfPeriod1, ptfPeriod2));
-
-                    assertEquals(1, accountsToPtfPeriods.size());
-                    PortfolioPeriod accountPtfPeriod = accountsToPtfPeriods.values().iterator().next();
-
-                    assertTrue(accountPtfPeriod.getAccountNumber().startsWith("RE"));
-
-                    List<Transaction> transactions = accountPtfPeriod.getTransactions();
-                    assertTrue(transactions.size() >= ptfPeriod1.getTransactions().size());
-                    assertTrue(transactions.size() >= ptfPeriod2.getTransactions().size());
-
-                    assertEquals(0, accountPtfPeriod.getPortfolioBreakdownSnapshots().size());
-                    assetBreakdownsAreConsistent(accountPtfPeriod.getPortfolioBreakdownSnapshots().values());
-
-                    assertTransactionsAreSorted(transactions);
-
-                    for (Transaction dividend : transactions) {
-                        assertNotNull(dividend.getDate());
-                        assertNotNull(dividend.getSymbol());
-                        assertNotNull(dividend.getSecurityName());
-                        assertNotNull(dividend.getIsin());
-                        assertNotNull(dividend.getCountry());
-                        assertTrue(dividend.getGrossAmount().compareTo(BigDecimal.ZERO) > 0);
-                        assertTrue(dividend.getWithholdingTax().compareTo(BigDecimal.ZERO) >= 0);
-                        assertTrue(dividend.getValue().compareTo(BigDecimal.ZERO) > 0);
-                        assertEquals(Currency.USD, dividend.getCurrency());
-                    }
-                });
-    }
-
-    @Test
-    void consolidate_manyVariousStatements() {
-        doIfFilesExist(
-                "trading-account-statement_2021-01-01_2022-01-31_en_2bda4d.pdf",
-                "trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf",
-                (inputStream1, inputStream2) -> doIfFilesExist(
-                        "trading-pnl-statement_2021-01-01_2022-01-01_en-us_6e8044.pdf",
-                        "trading-pnl-statement_2022-01-01_2023-01-01_en-us_b1efb2.pdf",
-                        (inputStream3, inputStream4) -> {
-                            PortfolioPeriod ptfPeriod1 = revolutSvc.parseStatement(inputStream1);
-                            PortfolioPeriod ptfPeriod2 = revolutSvc.parseStatement(inputStream2);
-                            PortfolioPeriod ptfPeriod3 = revolutSvc.parseStatement(inputStream3);
-                            PortfolioPeriod ptfPeriod4 = revolutSvc.parseStatement(inputStream4);
-
-                            Map<String, PortfolioPeriod> accountsToPtfPeriods = revolutSvc.consolidate(
-                                    List.of(ptfPeriod1, ptfPeriod2, ptfPeriod3, ptfPeriod4));
-
-                            assertEquals(1, accountsToPtfPeriods.size());
-                            PortfolioPeriod accountPtfPeriod = accountsToPtfPeriods.values().iterator().next();
-
-                            assertTrue(accountPtfPeriod.getAccountNumber().startsWith("RE"));
-
-                            List<Transaction> transactions = accountPtfPeriod.getTransactions();
-                            assertTrue(transactions.size() >= ptfPeriod1.getTransactions().size());
-                            assertTrue(transactions.size() >= ptfPeriod2.getTransactions().size());
-                            assertTrue(transactions.size() >= ptfPeriod3.getTransactions().size());
-                            assertTrue(transactions.size() >= ptfPeriod4.getTransactions().size());
-
-                            assertEquals(1, ptfPeriod1.getPortfolioBreakdownSnapshots().size());
-                            assertEquals(1, ptfPeriod2.getPortfolioBreakdownSnapshots().size());
-                            assertEquals(0, ptfPeriod3.getPortfolioBreakdownSnapshots().size());
-                            assertEquals(0, ptfPeriod4.getPortfolioBreakdownSnapshots().size());
-                            assertEquals(2, accountPtfPeriod.getPortfolioBreakdownSnapshots().size());
-
-                            assetBreakdownsAreConsistent(ptfPeriod1.getPortfolioBreakdownSnapshots().values());
-                            assetBreakdownsAreConsistent(ptfPeriod2.getPortfolioBreakdownSnapshots().values());
-                            assetBreakdownsAreConsistent(ptfPeriod3.getPortfolioBreakdownSnapshots().values());
-                            assetBreakdownsAreConsistent(ptfPeriod4.getPortfolioBreakdownSnapshots().values());
-                            assetBreakdownsAreConsistent(accountPtfPeriod.getPortfolioBreakdownSnapshots().values());
-                        }));
-    }
-
-    @Test
-    void consolidate_unitPrice() {
-
-        LocalDate now = LocalDate.now();
-        BigDecimal quantity = new BigDecimal("500");
-        BigDecimal declaredPrice = new BigDecimal("1.67");
-        BigDecimal exactPrice = new BigDecimal("1.6688");
-        BigDecimal value = new BigDecimal("835.48");
-        BigDecimal fees = BigDecimal.ZERO;
-        BigDecimal commission = new BigDecimal("1.08");
-
-        PortfolioPeriod ptf = new PortfolioPeriod();
-        ptf.setAccountNumber("test");
-        ptf.setAccountName("test");
-        ptf.setPeriodFrom(now);
-        ptf.setPeriodTo(now);
-        Transaction tran;
-        {
-            tran = new Transaction();
-            tran.setType(TransactionType.TRADE_MARKET);
-            tran.setSide(TransactionSide.BUY);
-            tran.setQuantity(quantity);
-            tran.setPrice(declaredPrice);
-            tran.setValue(value);
-            tran.setFees(fees);
-            tran.setCommission(commission);
         }
-        ptf.setTransactions(List.of(tran));
-
-        PortfolioPeriod consolidatedPtf = revolutSvc.consolidate(List.of(ptf)).values().iterator().next();
-
-        Transaction consTran = consolidatedPtf.getTransactions().get(0);
-        assertEquals(declaredPrice, consTran.getPrice().setScale(2, RoundingMode.HALF_UP));
-        assertEquals(0, exactPrice.compareTo(consTran.getPrice()));
-        assertEquals(value, consTran.getValue());
-        assertEquals(fees, consTran.getFees());
-        assertEquals(commission, consTran.getCommission());
-
     }
 
     @Test
-    void consolidate_dividendDuplicates() {
-        List<PortfolioPeriod> periods = parseAllFilesInFolder();
-        Map<String, PortfolioPeriod> consolidatedPtfPeriods = revolutSvc.consolidate(periods);
-        for (Map.Entry<String, PortfolioPeriod> e : consolidatedPtfPeriods.entrySet()) {
-            PortfolioPeriod portfolioPeriod = e.getValue();
+    void processStatements_nonContinuousPeriods() {
+        List<String> testFilePaths = getTestFilePaths(fileName ->
+                "trading-account-statement_2021-01-01_2021-12-31_en_b094bc.pdf".equals(fileName) ||
+                "trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf".equals(fileName)
+        );
+        if (testFilePaths.size() == 2) {
+            assertThrows(InvalidStatementException.class, () -> revolutSvc.processStatements(testFilePaths));
+        }
+    }
 
-            Map<String, Map<LocalDate, Transaction>> dividends = new LinkedHashMap<>();
-            for (Transaction t : portfolioPeriod.getTransactions()) {
-                if (!t.getType().equals(TransactionType.DIVIDEND)) {
-                    continue;
-                }
-                String symbol = t.getSymbol();
-                LocalDate date = t.getDate().toLocalDate();
-                Transaction oldDiv = dividends.computeIfAbsent(symbol, k -> new LinkedHashMap<>()).put(date, t);
-                assertNull(oldDiv, () -> String.format("\n%s\n%s", oldDiv, t));
+    @Test
+    void processStatements_dividendDuplicates() {
+        PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(getTestFilePaths());
+
+        Map<String, Map<LocalDate, Transaction>> dividends = new LinkedHashMap<>();
+        for (Transaction t : portfolioPeriod.getTransactions()) {
+            if (!t.getType().equals(TransactionType.DIVIDEND)) {
+                continue;
             }
+            String symbol = t.getSymbol();
+            LocalDate date = t.getDate().toLocalDate();
+            Transaction oldDiv = dividends.computeIfAbsent(symbol, k -> new LinkedHashMap<>()).put(date, t);
+            assertNull(oldDiv, () -> String.format("\n%s\n%s", oldDiv, t));
         }
-    }
-
-    private List<PortfolioPeriod> parseAllFilesInFolder() {
-        Path dir = Paths.get(TEST_DATA_FOLDER);
-        List<PortfolioPeriod> periods = new ArrayList<>();
-        try (Stream<Path> paths = Files.walk(dir)) {
-            paths
-                    .filter(Files::isRegularFile)
-                    .forEach(p -> {
-                        try (InputStream fis = new FileInputStream(p.toFile())) {
-                            periods.add(revolutSvc.parseStatement(fis));
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    });
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-        return periods;
-    }
-
-    private void doIfFileExists(String filePath, Consumer<InputStream> test) {
-        File file = Path.of(TEST_DATA_FOLDER, filePath).toFile();
-        if (file.exists() && file.isFile()) {
-            try (InputStream is = new FileInputStream(file)) {
-                test.accept(is);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        } else {
-            out.printf("File not found: '%s'", file);
-        }
-    }
-
-    private void doIfFilesExist(String filePath1, String filePath2, BiConsumer<InputStream, InputStream> test) {
-        String testDataFolder = "c:/prj/brinvex/brinvex-dev1/test-data/brinvex-util-revolut-impl";
-        File file1 = Path.of(testDataFolder, filePath1).toFile();
-        if (!file1.exists() || !file1.isFile()) {
-            out.printf("File not found: '%s'", file1);
-            return;
-        }
-        File file2 = Path.of(testDataFolder, filePath2).toFile();
-        if (!file2.exists() || !file2.isFile()) {
-            out.printf("File not found: '%s'", file2);
-            return;
-        }
-        try (InputStream is1 = new FileInputStream(file1)) {
-            try (InputStream is2 = new FileInputStream(file2)) {
-                test.accept(is1, is2);
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private void assertTransactionsAreSorted(List<Transaction> transactions) {
-        List<Transaction> sortedTransactions = transactions
-                .stream()
-                .sorted(comparing(Transaction::getDate))
-                .collect(Collectors.toList());
-        assertEquals(sortedTransactions, transactions);
     }
 
     private void assertTransactionsAttributesAreConsistent(List<Transaction> transactions) {
@@ -436,6 +190,14 @@ class RevolutServiceTest {
         }
     }
 
+    private void assertTransactionsAreSorted(List<Transaction> transactions) {
+        List<Transaction> sortedTransactions = transactions
+                .stream()
+                .sorted(comparing(Transaction::getDate))
+                .collect(Collectors.toList());
+        assertEquals(sortedTransactions, transactions);
+    }
+
     private static void assetBreakdownsAreConsistent(Collection<PortfolioBreakdown> values) {
         for (PortfolioBreakdown portfolioBreakdown : values) {
             assertNotNull(portfolioBreakdown.getCash().get(Currency.USD));
@@ -452,5 +214,31 @@ class RevolutServiceTest {
         }
     }
 
+    private List<String> getTestFilePaths() {
+        return getTestFilePaths(fileName -> true);
+    }
 
+    private List<String> getTestFilePaths(Predicate<String> fileNameFilter) {
+        String testDataFolder = TEST_DATA_FOLDER;
+
+        List<String> testStatementFilePaths;
+        Path testFolderPath = Paths.get(testDataFolder);
+        File testFolder = testFolderPath.toFile();
+        if (!testFolder.exists() || !testFolder.isDirectory()) {
+            out.printf(String.format("Test data folder not found: '%s'", testDataFolder));
+        }
+        try (Stream<Path> filePaths = Files.walk(testFolderPath)) {
+            testStatementFilePaths = filePaths
+                    .filter(p -> fileNameFilter.test(p.getFileName().toString()))
+                    .filter(p -> p.toFile().isFile())
+                    .map(Path::toString)
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        if (testStatementFilePaths.isEmpty()) {
+            out.printf(String.format("No files found in test data folder: '%s'", testDataFolder));
+        }
+        return testStatementFilePaths;
+    }
 }

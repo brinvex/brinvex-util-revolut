@@ -1,15 +1,22 @@
+Version 3.0.0 - 2023-01-13
+================================================================================
+Simplify 2 service methods (parse, consolidate) into one processStatements
+
+
 Version 2.0.3 - 2023-01-12
 ================================================================================
-Transactions should not be duplicated after consolidation Lukas Moments ago
+Transactions should not be duplicated after consolidation
+
 
 Version 2.0.2 - 2023-01-12
 ================================================================================
-Dividend grossAmount should be not null if it is available at least in one statement Lukas A minute ago
+Dividend grossAmount should be not null if it is available at least in one statement
 
-Increase traded price precision/scale
+
 Version 2.0.1 - 2023-01-12
 ================================================================================
 Increase traded price precision/scale
+
 
 Version 2.0.0 - 2023-01-11
 ================================================================================
