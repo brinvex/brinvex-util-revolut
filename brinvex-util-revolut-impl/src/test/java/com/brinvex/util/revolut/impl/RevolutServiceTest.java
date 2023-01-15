@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.brinvex.util.revolut;
+package com.brinvex.util.revolut.impl;
 
 import com.brinvex.util.revolut.api.model.Currency;
 import com.brinvex.util.revolut.api.model.Holding;

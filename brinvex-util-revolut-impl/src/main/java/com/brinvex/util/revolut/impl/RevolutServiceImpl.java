@@ -146,7 +146,7 @@ public class RevolutServiceImpl implements RevolutService {
             LocalDate nextPeriodFrom = result.getPeriodTo().plusDays(1);
             if (nextPeriodFrom.isBefore(periodFrom)) {
                 throw new InvalidStatementException(String.format(
-                        "accountNumber=%s, accountName='%s', missingPortfolioPeriod='%s - %s'",
+                        "accountNumber=%s, accountName='%s', missingPeriod='%s - %s'",
                         accountNumber, accountName, nextPeriodFrom, periodFrom.minusDays(1)));
             }
             if (periodTo.isAfter(result.getPeriodTo())) {
@@ -240,7 +240,7 @@ public class RevolutServiceImpl implements RevolutService {
             accountPortfolioPeriods.add(portfolioPeriod);
             String accountName0 = accountPortfolioPeriods.get(0).getAccountName();
             if (!accountName0.equals(accountName)) {
-                throw new IllegalArgumentException(String.format("accountName mismatch: '%s' != '%s', accountNumber=%s",
+                throw new InvalidStatementException(String.format("accountName mismatch: '%s' != '%s', accountNumber=%s",
                         accountName0, accountName, accountNumber
                 ));
             }
