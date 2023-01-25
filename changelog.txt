@@ -1,3 +1,7 @@
+Version 3.2.0 - 2023-01-25
+================================================================================
+Change project name to Brinvex Revolut Utils
+
 Version 3.1.0 - 2023-01-13
 ================================================================================
 Throw InvalidDataException with appropriate details when data inconsistency found during processing

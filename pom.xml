@@ -24,9 +24,9 @@
     <version>3.1.1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>${project.groupId}:${project.artifactId}</name>
+    <name>Brinvex Revolut Utils</name>
     <description>
-        Brinvex-Util-Revolut is a compact Java library which enables developers
+        Brinvex Revolut Utils is a compact Java library which enables developers
         to easily extract and work with data from Revolut trading account reports.
     </description>
     <organization>
