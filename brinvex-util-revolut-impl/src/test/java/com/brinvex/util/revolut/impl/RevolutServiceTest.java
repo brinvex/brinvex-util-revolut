@@ -52,7 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RevolutServiceTest {
 
-    private static final String TEST_DATA_FOLDER = "c:/prj/brinvex/brinvex-dev1/test-data/brinvex-util-revolut-impl";
+    private static final String TEST_DATA_FOLDER = "c:/prj/brinvex/brinvex-util-revolut/test-data";
 
     private final RevolutService revolutSvc = RevolutServiceFactory.INSTANCE.getService();
 
