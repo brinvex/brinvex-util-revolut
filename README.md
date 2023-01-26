@@ -50,4 +50,4 @@ PortfolioPeriod ptfPeriod = revolutSvc.processStatements(List.of(
 
 ### License
 
-- The _Brinvex-Util-Revolut_ is released under version 2.0 of the Apache License.
+- The _Brinvex Revolut Utils_ is released under version 2.0 of the Apache License.
