@@ -1,8 +1,8 @@
-# Brinvex Revolut Utils
+# Brinvex-Util-Revolut
 
 ## Introduction
 
-_Brinvex Revolut Utils_ is a compact Java library which enables developers 
+_Brinvex-Util-Revolut_ is a compact Java library which enables developers 
 to easily extract and work with data from Revolut trading account reports.
 
 Working with Revolut trading account files is often a tedious work. 
@@ -12,7 +12,7 @@ One example of many nuances Revolut has is that the _profit-and-loss-pdf_ report
 contains information about dividends withholding tax but
 _profit-and-loss-csv_, _account-statement-pdf_, _account-statement-csv_ do not.
 
-**_Brinvex Revolut Utils_ extracts and consolidates data coming from various
+**_Brinvex-Util-Revolut_ extracts and consolidates data coming from various
 Revolut report formats and makes them available in simple consistent form for further processing.**
 
 ## How to use it
@@ -50,4 +50,4 @@ PortfolioPeriod ptfPeriod = revolutSvc.processStatements(List.of(
 
 ### License
 
-- The _Brinvex Revolut Utils_ is released under version 2.0 of the Apache License.
+- The _Brinvex-Util-Revolut_ is released under version 2.0 of the Apache License.

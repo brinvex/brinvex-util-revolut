@@ -30,9 +30,9 @@
         <isPomPackagingModule>false</isPomPackagingModule>
     </properties>
 
-    <name>Brinvex Revolut Utils - Api</name>
+    <name>Brinvex-Util-Revolut - Api</name>
     <description>
-        Brinvex Revolut Utils is a compact Java library which enables developers
+        Brinvex-Util-Revolut is a compact Java library which enables developers
         to easily extract and work with data from Revolut trading account reports.
     </description>
 
