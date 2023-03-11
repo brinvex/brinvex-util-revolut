@@ -157,6 +157,7 @@
                                         <exclude>**/.gitignore</exclude>
                                         <exclude>**/.LICENSE</exclude>
                                         <exclude>**/.README</exclude>
+                                        <exclude>.run/**</exclude>
                                     </excludes>
                                 </licenseSet>
                             </licenseSets>

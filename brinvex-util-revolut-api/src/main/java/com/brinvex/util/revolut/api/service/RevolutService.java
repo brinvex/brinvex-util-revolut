@@ -17,11 +17,11 @@ package com.brinvex.util.revolut.api.service;
 
 import com.brinvex.util.revolut.api.model.PortfolioPeriod;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -49,13 +49,12 @@ public interface RevolutService {
     /**
      * See {@link RevolutService#processStatements(Stream)}
      */
-    default PortfolioPeriod processStatements(Collection<String> statementFilePaths) {
+    default PortfolioPeriod processStatements(Collection<Path> statementFilePaths) {
         return processStatements(statementFilePaths
                 .stream()
-                .map(File::new)
                 .map(f -> () -> {
                     try {
-                        return new FileInputStream(f);
+                        return new FileInputStream(f.toFile());
                     } catch (FileNotFoundException e) {
                         throw new UncheckedIOException(e);
                     }

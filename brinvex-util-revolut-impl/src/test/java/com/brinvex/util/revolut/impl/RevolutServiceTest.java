@@ -52,13 +52,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RevolutServiceTest {
 
-    private static final String TEST_DATA_FOLDER = "c:/prj/brinvex/brinvex-util-revolut/test-data";
+    private static final String TEST_DATA_FOLDER = "c:/prj/brinvex/brinvex-util/brinvex-util-revolut/test-data";
 
     private final RevolutService revolutSvc = RevolutServiceFactory.INSTANCE.getService();
 
     @Test
     void processStatements_parse() {
-        List<String> testFilePaths = getTestFilePaths();
+        List<Path> testFilePaths = getTestFilePaths();
         if (!testFilePaths.isEmpty()) {
             PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(testFilePaths);
             assertNotNull(portfolioPeriod);
@@ -73,7 +73,7 @@ class RevolutServiceTest {
 
     @Test
     void processStatements_oneAccountStatement() {
-        List<String> testFilePaths = getTestFilePaths("trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf"::equals);
+        List<Path> testFilePaths = getTestFilePaths("trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf"::equals);
         if (!testFilePaths.isEmpty()) {
             PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(testFilePaths);
 
@@ -91,7 +91,7 @@ class RevolutServiceTest {
 
     @Test
     void processStatements_manyEqualAccountStatements() {
-        List<String> testFilePaths = getTestFilePaths("trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf"::equals);
+        List<Path> testFilePaths = getTestFilePaths("trading-account-statement_2022-01-01_2023-01-11_en_bad2be.pdf"::equals);
         if (!testFilePaths.isEmpty()) {
             PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(List.of(testFilePaths.get(0), testFilePaths.get(0)));
 
@@ -109,7 +109,7 @@ class RevolutServiceTest {
 
     @Test
     void processStatements_nonContinuousPeriods() {
-        List<String> testFilePaths = getTestFilePaths(fileName ->
+        List<Path> testFilePaths = getTestFilePaths(fileName ->
                 "trading-account-statement_2021-01-01_2021-12-31_en_b094bc.pdf".equals(fileName) ||
                 "trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf".equals(fileName)
         );
@@ -214,14 +214,14 @@ class RevolutServiceTest {
         }
     }
 
-    private List<String> getTestFilePaths() {
+    private List<Path> getTestFilePaths() {
         return getTestFilePaths(fileName -> true);
     }
 
-    private List<String> getTestFilePaths(Predicate<String> fileNameFilter) {
+    private List<Path> getTestFilePaths(Predicate<String> fileNameFilter) {
         String testDataFolder = TEST_DATA_FOLDER;
 
-        List<String> testStatementFilePaths;
+        List<Path> testStatementFilePaths;
         Path testFolderPath = Paths.get(testDataFolder);
         File testFolder = testFolderPath.toFile();
         if (!testFolder.exists() || !testFolder.isDirectory()) {
@@ -231,7 +231,6 @@ class RevolutServiceTest {
             testStatementFilePaths = filePaths
                     .filter(p -> fileNameFilter.test(p.getFileName().toString()))
                     .filter(p -> p.toFile().isFile())
-                    .map(Path::toString)
                     .collect(Collectors.toList());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
