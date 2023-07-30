@@ -16,13 +16,16 @@
 package com.brinvex.util.revolut.api.service;
 
 import com.brinvex.util.revolut.api.model.PortfolioPeriod;
+import com.brinvex.util.revolut.api.model.PortfolioValue;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.Collection;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -62,4 +65,17 @@ public interface RevolutService {
 
     }
 
+    Map<LocalDate, PortfolioValue> getPortfolioValues(Stream<Supplier<InputStream>> statementInputStreams);
+
+    default Map<LocalDate, PortfolioValue> getPortfolioValues(Collection<Path> statementFilePaths) {
+        return getPortfolioValues(statementFilePaths
+                .stream()
+                .map(f -> () -> {
+                    try {
+                        return new FileInputStream(f.toFile());
+                    } catch (FileNotFoundException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                }));
+    }
 }

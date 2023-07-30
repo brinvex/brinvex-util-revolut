@@ -17,9 +17,10 @@ package com.brinvex.util.revolut.impl;
 
 import com.brinvex.util.revolut.api.model.PortfolioBreakdown;
 import com.brinvex.util.revolut.api.model.PortfolioPeriod;
+import com.brinvex.util.revolut.api.model.PortfolioValue;
 import com.brinvex.util.revolut.api.model.Transaction;
-import com.brinvex.util.revolut.api.model.TransactionType;
 import com.brinvex.util.revolut.api.model.TransactionSide;
+import com.brinvex.util.revolut.api.model.TransactionType;
 import com.brinvex.util.revolut.api.service.RevolutService;
 import com.brinvex.util.revolut.api.service.exception.InvalidDataException;
 import com.brinvex.util.revolut.api.service.exception.InvalidStatementException;
@@ -48,7 +49,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.math.BigDecimal.ZERO;
+import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparing;
+import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
 public class RevolutServiceImpl implements RevolutService {
@@ -78,7 +81,7 @@ public class RevolutServiceImpl implements RevolutService {
         PortfolioPeriod somePtfPeriod = portfolioPeriods.get(0);
         if (petfPeriodPerAccountIterator.hasNext()) {
             PortfolioPeriod otherPtfPeriod = petfPeriodPerAccountIterator.next().get(0);
-            throw new InvalidStatementException(String.format("Unexpected multiple accounts: %s/%s, %s/%s",
+            throw new RevolutServiceException(String.format("Unexpected multiple accounts: %s/%s, %s/%s",
                     somePtfPeriod.getAccountNumber(),
                     somePtfPeriod.getAccountName(),
                     otherPtfPeriod.getAccountNumber(),
@@ -96,6 +99,96 @@ public class RevolutServiceImpl implements RevolutService {
                         "account=%s/%s", somePtfPeriod.getAccountNumber(), somePtfPeriod.getAccountName()), ex);
             }
         }
+    }
+
+    @Override
+    public Map<LocalDate, PortfolioValue> getPortfolioValues(Stream<Supplier<InputStream>> statementInputStreams) {
+        String mainAccountNumber = null;
+        String mainAccountName = null;
+        List<PortfolioValue> ptfValues = statementInputStreams
+                .map(inputStreamSupplier -> {
+                    try (InputStream is = inputStreamSupplier.get()) {
+                        return getPortfolioValues(is);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                })
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
+
+        TreeMap<LocalDate, PortfolioValue> results = new TreeMap<>();
+        for (PortfolioValue ptfValue : ptfValues) {
+            LocalDate day = ptfValue.getDay();
+            String accountNumber = ptfValue.getAccountNumber();
+            String accountName = ptfValue.getAccountName();
+            if (mainAccountNumber == null) {
+                mainAccountNumber = requireNonNull(accountNumber);
+                mainAccountName = requireNonNull(accountName);
+            } else {
+                if (!mainAccountNumber.equals(ptfValue.getAccountNumber()) || !mainAccountName.equals(accountName)) {
+                    throw new RevolutServiceException(String.format("Unexpected multiple accounts: %s/%s, %s/%s",
+                            mainAccountName,
+                            mainAccountNumber,
+                            accountNumber,
+                            accountName)
+                    );
+                }
+            }
+            PortfolioValue oldPtfValue = results.get(day);
+            if (oldPtfValue != null) {
+                {
+                    BigDecimal oldCashValue = oldPtfValue.getCashValue();
+                    BigDecimal newCashValue = ptfValue.getCashValue();
+                    if (oldCashValue.compareTo(newCashValue) != 0) {
+                        throw new RevolutServiceException(String.format("Different cash value: %s/%s, %s, %s/%s",
+                                mainAccountName, mainAccountNumber, day, accountNumber, accountName
+                        ));
+                    }
+                }
+                {
+                    BigDecimal oldStocksValue = oldPtfValue.getStocksValue();
+                    BigDecimal newStocksValue = ptfValue.getStocksValue();
+                    if (oldStocksValue.compareTo(newStocksValue) != 0) {
+                        throw new RevolutServiceException(String.format("Different stocks value: %s/%s, %s, %s/%s",
+                                mainAccountName, mainAccountNumber, day, accountNumber, accountName
+                        ));
+                    }
+                }
+                {
+                    BigDecimal oldTotalValue = oldPtfValue.getStocksValue();
+                    BigDecimal newTotalValue = ptfValue.getStocksValue();
+                    if (oldTotalValue.compareTo(newTotalValue) != 0) {
+                        throw new RevolutServiceException(String.format("Different total value: %s/%s, %s, %s/%s",
+                                mainAccountName, mainAccountNumber, day, accountNumber, accountName
+                        ));
+                    }
+                }
+            } else {
+                results.put(day, ptfValue);
+            }
+        }
+        return results;
+    }
+
+    private List<PortfolioValue> getPortfolioValues(InputStream inputStream) {
+        List<String> lines = pdfReader.readPdfLines(inputStream);
+
+        String accountStatementTitle = "Account Statement";
+        String profitAndLossTitle = "Profit and Loss Statement";
+
+        String line0 = lines.get(0);
+        String line1 = lines.get(1);
+        List<PortfolioValue> portfolioValues;
+        if (accountStatementTitle.equals(line0) || accountStatementTitle.equals(line1)) {
+            portfolioValues = accountStatementParser.parsePortfolioValueFromTradingAccountStatement(lines);
+        } else if (profitAndLossTitle.equals(line0) || profitAndLossTitle.equals(line1)) {
+            //no-op
+            portfolioValues = emptyList();
+        } else {
+            throw new IllegalArgumentException(String.format("Could not detect statement type '%s', '%s'", line0, line1));
+        }
+
+        return portfolioValues;
     }
 
     private PortfolioPeriod parseStatement(InputStream inputStream) {

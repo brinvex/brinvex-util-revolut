@@ -19,6 +19,7 @@ import com.brinvex.util.revolut.api.model.Currency;
 import com.brinvex.util.revolut.api.model.Holding;
 import com.brinvex.util.revolut.api.model.PortfolioBreakdown;
 import com.brinvex.util.revolut.api.model.PortfolioPeriod;
+import com.brinvex.util.revolut.api.model.PortfolioValue;
 import com.brinvex.util.revolut.api.model.Transaction;
 import com.brinvex.util.revolut.api.model.TransactionType;
 import com.brinvex.util.revolut.api.service.RevolutService;
@@ -132,6 +133,12 @@ class RevolutServiceTest {
             Transaction oldDiv = dividends.computeIfAbsent(symbol, k -> new LinkedHashMap<>()).put(date, t);
             assertNull(oldDiv, () -> String.format("\n%s\n%s", oldDiv, t));
         }
+    }
+
+    @Test
+    void getPortfolioValues() {
+        Map<LocalDate, PortfolioValue> portfolioValues = revolutSvc.getPortfolioValues(getTestFilePaths());
+        assertNotNull(portfolioValues);
     }
 
     private void assertTransactionsAttributesAreConsistent(List<Transaction> transactions) {

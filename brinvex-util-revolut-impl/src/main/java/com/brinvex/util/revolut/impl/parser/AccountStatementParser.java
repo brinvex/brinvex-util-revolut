@@ -19,6 +19,7 @@ import com.brinvex.util.revolut.api.model.Currency;
 import com.brinvex.util.revolut.api.model.Holding;
 import com.brinvex.util.revolut.api.model.PortfolioBreakdown;
 import com.brinvex.util.revolut.api.model.PortfolioPeriod;
+import com.brinvex.util.revolut.api.model.PortfolioValue;
 import com.brinvex.util.revolut.api.model.Transaction;
 
 import java.math.BigDecimal;
@@ -67,12 +68,131 @@ public class AccountStatementParser {
         private static final Pattern TRANSACTIONS_SECTION_END_PATTERN = Pattern.compile(
                 "Report\\s+lost\\s+or\\s+stolen\\s+card");
 
+        private static final Pattern ACC_SUMMARY_STARTING_ENDING_PATTERN = Pattern.compile(
+                "Starting\\s+Ending");
+        private static final Pattern ACC_SUMMARY_STOCKS_VALUE_PATTERN = Pattern.compile(
+                "Stocks\\s+value\\s+(?<startValue>-?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+(?<endValue>-?\\$(\\d+,)*\\d+(\\.\\d+)?)");
+        private static final Pattern ACC_SUMMARY_CASH_VALUE_PATTERN = Pattern.compile(
+                "Cash\\s+value\\s*\\*?\\s+(?<startValue>-?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+(?<endValue>-?\\$(\\d+,)*\\d+(\\.\\d+)?)");
+        private static final Pattern ACC_SUMMARY_TOTAL_VALUE_PATTERN = Pattern.compile(
+                "Total\\s+(?<startValue>-?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+(?<endValue>-?\\$(\\d+,)*\\d+(\\.\\d+)?)");
+
         private static final DateTimeFormatter PERIOD_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd MMM yyyy");
     }
 
     private final AccountStatementHoldingLineParser accStatementHoldingLineParser = new AccountStatementHoldingLineParser();
 
     private final AccountStatementTransactionLineParser accStatementTransactionLineParser = new AccountStatementTransactionLineParser();
+
+    public List<PortfolioValue> parsePortfolioValueFromTradingAccountStatement(List<String> lines) {
+        String accountName = null;
+        String accountNumber = null;
+        LocalDate periodFrom = null;
+        LocalDate periodTo = null;
+        for (int i = 0, linesSize = lines.size(); i < linesSize; i++) {
+            String line = lines.get(i);
+            line = stripToEmpty(line);
+            if (line.isBlank()) {
+                continue;
+            }
+            {
+                Matcher matcher = LazyHolder.ACCOUNT_NAME_PATTERN.matcher(line);
+                if (matcher.find()) {
+                    accountName = matcher.group("accountName");
+                    continue;
+                }
+            }
+            {
+                Matcher matcher = LazyHolder.ACCOUNT_NUMBER_PATTERN.matcher(line);
+                if (matcher.find()) {
+                    accountNumber = matcher.group("accountNumber");
+                    continue;
+                }
+            }
+            {
+                Matcher matcher = LazyHolder.PERIOD_PATTERN.matcher(line);
+                if (matcher.find()) {
+                    periodFrom = LocalDate.parse(matcher.group("periodFrom"), LazyHolder.PERIOD_DATE_FORMATTER);
+                    periodTo = LocalDate.parse(matcher.group("periodTo"), LazyHolder.PERIOD_DATE_FORMATTER);
+                    continue;
+                }
+            }
+            {
+                if (LazyHolder.ACC_SUMMARY_STARTING_ENDING_PATTERN.matcher(line).find()) {
+                    if (accountName == null) {
+                        throw new IllegalStateException("Account name not found");
+                    }
+                    if (accountNumber == null) {
+                        throw new IllegalStateException("Account number not found");
+                    }
+                    if (periodFrom == null) {
+                        throw new IllegalStateException("Period not found");
+                    }
+
+                    BigDecimal stocksStartValue;
+                    BigDecimal stocksEndValue;
+                    BigDecimal cashStartValue;
+                    BigDecimal cashEndValue;
+                    BigDecimal totalStartValue;
+                    BigDecimal totalEndValue;
+                    {
+                        String stocksValueLine = lines.get(i + 1);
+                        Matcher matcher = LazyHolder.ACC_SUMMARY_STOCKS_VALUE_PATTERN.matcher(stocksValueLine);
+                        if (matcher.find()) {
+                            stocksStartValue = parseMoney(matcher.group("startValue"));
+                            stocksEndValue = parseMoney(matcher.group("endValue"));
+                        } else {
+                            throw new IllegalStateException("Stocks value not found: " + stocksValueLine);
+                        }
+                    }
+                    {
+                        String cashValueLine = lines.get(i + 2);
+                        Matcher matcher = LazyHolder.ACC_SUMMARY_CASH_VALUE_PATTERN.matcher(cashValueLine);
+                        if (matcher.find()) {
+                            cashStartValue = parseMoney(matcher.group("startValue"));
+                            cashEndValue = parseMoney(matcher.group("endValue"));
+                        } else {
+                            throw new IllegalStateException("Cash value not found: " + cashValueLine);
+                        }
+                    }
+                    {
+                        String totalValueLine = lines.get(i + 3);
+                        Matcher matcher = LazyHolder.ACC_SUMMARY_TOTAL_VALUE_PATTERN.matcher(totalValueLine);
+                        if (matcher.find()) {
+                            totalStartValue = parseMoney(matcher.group("startValue"));
+                            totalEndValue = parseMoney(matcher.group("endValue"));
+                        } else {
+                            throw new IllegalStateException("Total value not found: " + totalValueLine);
+                        }
+                    }
+                    PortfolioValue startPtfValue;
+                    {
+                        startPtfValue = new PortfolioValue();
+                        startPtfValue.setStocksValue(stocksStartValue);
+                        startPtfValue.setCashValue(cashStartValue);
+                        startPtfValue.setTotalValue(totalStartValue);
+                        startPtfValue.setAccountName(accountName);
+                        startPtfValue.setAccountNumber(accountNumber);
+                        startPtfValue.setDay(periodFrom);
+                        startPtfValue.setCurrency(Currency.USD);
+                    }
+                    PortfolioValue endPtfValue;
+                    {
+                        endPtfValue = new PortfolioValue();
+                        endPtfValue.setStocksValue(stocksEndValue);
+                        endPtfValue.setCashValue(cashEndValue);
+                        endPtfValue.setTotalValue(totalEndValue);
+                        endPtfValue.setAccountName(accountName);
+                        endPtfValue.setAccountNumber(accountNumber);
+                        endPtfValue.setDay(periodTo);
+                        endPtfValue.setCurrency(Currency.USD);
+                    }
+                    return List.of(startPtfValue,endPtfValue);
+                }
+            }
+        }
+        throw new IllegalArgumentException("Parsing failed");
+    }
 
     public PortfolioPeriod parseTradingAccountStatement(List<String> lines) {
         String accountName = null;
@@ -114,7 +234,7 @@ public class AccountStatementParser {
                     continue;
                 }
             }
-            if (accountName != null && accountNumber != null && periodFrom != null && periodTo != null && cash != null) {
+            if (accountName != null && accountNumber != null && periodFrom != null && cash != null) {
                 break;
             }
         }
@@ -124,7 +244,7 @@ public class AccountStatementParser {
         if (accountNumber == null) {
             throw new IllegalStateException("Account number not found");
         }
-        if (periodFrom == null || periodTo == null) {
+        if (periodFrom == null) {
             throw new IllegalStateException("Period not found");
         }
         if (cash == null) {
