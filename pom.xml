@@ -76,7 +76,7 @@
         <maven.compiler.showDeprecation>true</maven.compiler.showDeprecation>
 
         <maven-release-plugin.version>2.5.3</maven-release-plugin.version>
-        <pdfbox.version>2.0.27</pdfbox.version>
+        <pdfbox.version>2.0.29</pdfbox.version>
 
         <junit-jupiter.version>5.9.1</junit-jupiter.version>
 
