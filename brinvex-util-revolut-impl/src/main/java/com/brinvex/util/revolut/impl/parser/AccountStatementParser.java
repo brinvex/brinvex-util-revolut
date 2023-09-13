@@ -56,8 +56,8 @@ public class AccountStatementParser {
         private static final Pattern HOLDINGS_SECTION_END_PATTERN = Pattern.compile(
                 "Stocks\\s+value.*");
 
-        private static final Pattern CASH_PATTERN = Pattern.compile(
-                "Cash\\s+value\\s+(?<cash>-?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+\\d+(\\.\\d+)?\\s*%");
+        private static final Pattern CASH_USD_PATTERN = Pattern.compile(
+                "Cash\\s+value\\s+(?<cash>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+\\d+(\\.\\d+)?\\s*%");
 
         private static final Pattern TRANSACTIONS_SECTION_START_PATTERN = Pattern.compile(
                 "Transactions");
@@ -71,11 +71,11 @@ public class AccountStatementParser {
         private static final Pattern ACC_SUMMARY_STARTING_ENDING_PATTERN = Pattern.compile(
                 "Starting\\s+Ending");
         private static final Pattern ACC_SUMMARY_STOCKS_VALUE_PATTERN = Pattern.compile(
-                "Stocks\\s+value\\s+(?<startValue>-?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+(?<endValue>-?\\$(\\d+,)*\\d+(\\.\\d+)?)");
+                "Stocks\\s+value\\s+(?<startValue>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+(?<endValue>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)");
         private static final Pattern ACC_SUMMARY_CASH_VALUE_PATTERN = Pattern.compile(
-                "Cash\\s+value\\s*\\*?\\s+(?<startValue>-?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+(?<endValue>-?\\$(\\d+,)*\\d+(\\.\\d+)?)");
+                "Cash\\s+value\\s*\\*?\\s+(?<startValue>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+(?<endValue>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)");
         private static final Pattern ACC_SUMMARY_TOTAL_VALUE_PATTERN = Pattern.compile(
-                "Total\\s+(?<startValue>-?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+(?<endValue>-?\\$(\\d+,)*\\d+(\\.\\d+)?)");
+                "Total\\s+(?<startValue>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+(?<endValue>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)");
 
         private static final DateTimeFormatter PERIOD_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd MMM yyyy");
     }
@@ -201,6 +201,11 @@ public class AccountStatementParser {
         LocalDate periodTo = null;
         BigDecimal cash = null;
         for (String line : lines) {
+
+            if (accountName != null && accountNumber != null && periodFrom != null && cash != null) {
+                break;
+            }
+
             line = stripToEmpty(line);
             if (line.isBlank()) {
                 continue;
@@ -228,14 +233,11 @@ public class AccountStatementParser {
                 }
             }
             {
-                Matcher matcher = LazyHolder.CASH_PATTERN.matcher(line);
+                Matcher matcher = LazyHolder.CASH_USD_PATTERN.matcher(line);
                 if (matcher.find()) {
                     cash = parseMoney(matcher.group("cash"));
                     continue;
                 }
-            }
-            if (accountName != null && accountNumber != null && periodFrom != null && cash != null) {
-                break;
             }
         }
         if (accountName == null) {
@@ -292,6 +294,9 @@ public class AccountStatementParser {
                 }
                 if (LazyHolder.TRANSACTIONS_SECTION_END_PATTERN.matcher(line).matches()) {
                     break;
+                }
+                if (line.contains("Transfer from Revolut Bank UAB to Revolut Securities Europe UAB")) {
+                    continue;
                 }
                 Transaction transaction = accStatementTransactionLineParser.parseTradingAccountTransactionLine(line);
                 transactions.add(transaction);

@@ -39,10 +39,11 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -51,7 +52,6 @@ import java.util.stream.Stream;
 import static java.math.BigDecimal.ZERO;
 import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparing;
-import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
 public class RevolutServiceImpl implements RevolutService {
@@ -76,21 +76,10 @@ public class RevolutServiceImpl implements RevolutService {
         if (periods.isEmpty()) {
             return null;
         }
-        Iterator<List<PortfolioPeriod>> petfPeriodPerAccountIterator = groupPortfolioPeriodsByAccount(periods).values().iterator();
-        List<PortfolioPeriod> portfolioPeriods = petfPeriodPerAccountIterator.next();
-        PortfolioPeriod somePtfPeriod = portfolioPeriods.get(0);
-        if (petfPeriodPerAccountIterator.hasNext()) {
-            PortfolioPeriod otherPtfPeriod = petfPeriodPerAccountIterator.next().get(0);
-            throw new RevolutServiceException(String.format("Unexpected multiple accounts: %s/%s, %s/%s",
-                    somePtfPeriod.getAccountNumber(),
-                    somePtfPeriod.getAccountName(),
-                    otherPtfPeriod.getAccountNumber(),
-                    otherPtfPeriod.getAccountName()
-            ));
-        }
+        PortfolioPeriod somePtfPeriod = periods.get(0);
 
         try {
-            return consolidateAccountPortfolioPeriods(portfolioPeriods);
+            return consolidateAccountPortfolioPeriods(periods);
         } catch (Exception ex) {
             if (ex instanceof RevolutServiceException) {
                 throw ex;
@@ -103,8 +92,6 @@ public class RevolutServiceImpl implements RevolutService {
 
     @Override
     public Map<LocalDate, PortfolioValue> getPortfolioValues(Stream<Supplier<InputStream>> statementInputStreams) {
-        String mainAccountNumber = null;
-        String mainAccountName = null;
         List<PortfolioValue> ptfValues = statementInputStreams
                 .map(inputStreamSupplier -> {
                     try (InputStream is = inputStreamSupplier.get()) {
@@ -121,27 +108,15 @@ public class RevolutServiceImpl implements RevolutService {
             LocalDate day = ptfValue.getDay();
             String accountNumber = ptfValue.getAccountNumber();
             String accountName = ptfValue.getAccountName();
-            if (mainAccountNumber == null) {
-                mainAccountNumber = requireNonNull(accountNumber);
-                mainAccountName = requireNonNull(accountName);
-            } else {
-                if (!mainAccountNumber.equals(ptfValue.getAccountNumber()) || !mainAccountName.equals(accountName)) {
-                    throw new RevolutServiceException(String.format("Unexpected multiple accounts: %s/%s, %s/%s",
-                            mainAccountName,
-                            mainAccountNumber,
-                            accountNumber,
-                            accountName)
-                    );
-                }
-            }
+
             PortfolioValue oldPtfValue = results.get(day);
             if (oldPtfValue != null) {
                 {
                     BigDecimal oldCashValue = oldPtfValue.getCashValue();
                     BigDecimal newCashValue = ptfValue.getCashValue();
                     if (oldCashValue.compareTo(newCashValue) != 0) {
-                        throw new RevolutServiceException(String.format("Different cash value: %s/%s, %s, %s/%s",
-                                mainAccountName, mainAccountNumber, day, accountNumber, accountName
+                        throw new RevolutServiceException(String.format("Different cash value: %s, %s/%s",
+                                day, accountNumber, accountName
                         ));
                     }
                 }
@@ -149,8 +124,8 @@ public class RevolutServiceImpl implements RevolutService {
                     BigDecimal oldStocksValue = oldPtfValue.getStocksValue();
                     BigDecimal newStocksValue = ptfValue.getStocksValue();
                     if (oldStocksValue.compareTo(newStocksValue) != 0) {
-                        throw new RevolutServiceException(String.format("Different stocks value: %s/%s, %s, %s/%s",
-                                mainAccountName, mainAccountNumber, day, accountNumber, accountName
+                        throw new RevolutServiceException(String.format("Different stocks value: %s, %s/%s",
+                                day, accountNumber, accountName
                         ));
                     }
                 }
@@ -158,8 +133,8 @@ public class RevolutServiceImpl implements RevolutService {
                     BigDecimal oldTotalValue = oldPtfValue.getStocksValue();
                     BigDecimal newTotalValue = ptfValue.getStocksValue();
                     if (oldTotalValue.compareTo(newTotalValue) != 0) {
-                        throw new RevolutServiceException(String.format("Different total value: %s/%s, %s, %s/%s",
-                                mainAccountName, mainAccountNumber, day, accountNumber, accountName
+                        throw new RevolutServiceException(String.format("Different total value: %s, %s/%s",
+                                day, accountNumber, accountName
                         ));
                     }
                 }
@@ -216,14 +191,10 @@ public class RevolutServiceImpl implements RevolutService {
         accountPortfolioPeriods.sort(comparing(PortfolioPeriod::getPeriodFrom).thenComparing(PortfolioPeriod::getPeriodTo));
 
         PortfolioPeriod result = new PortfolioPeriod();
-        String accountNumber;
-        String accountName;
+        Set<String> accountNumbers = new LinkedHashSet<>();
+        Set<String> accountNames = new LinkedHashSet<>();
         {
             PortfolioPeriod portfolioPeriod0 = accountPortfolioPeriods.get(0);
-            accountNumber = portfolioPeriod0.getAccountNumber();
-            accountName = portfolioPeriod0.getAccountName();
-            result.setAccountNumber(accountNumber);
-            result.setAccountName(accountName);
             result.setPeriodFrom(portfolioPeriod0.getPeriodFrom());
             result.setPeriodTo(portfolioPeriod0.getPeriodTo());
         }
@@ -233,6 +204,11 @@ public class RevolutServiceImpl implements RevolutService {
         Map<LocalDate, PortfolioBreakdown> breakdowns = new LinkedHashMap<>();
 
         for (PortfolioPeriod portfolioPeriod : accountPortfolioPeriods) {
+            String accountNumber = portfolioPeriod.getAccountNumber();
+            String accountName = portfolioPeriod.getAccountName();
+            accountNumbers.add(accountNumber);
+            accountNames.add(accountName);
+
             LocalDate periodFrom = portfolioPeriod.getPeriodFrom();
             LocalDate periodTo = portfolioPeriod.getPeriodTo();
 
@@ -313,6 +289,8 @@ public class RevolutServiceImpl implements RevolutService {
                 }
             }
         }
+        result.setAccountNumber(String.join(",", accountNumbers));
+        result.setAccountName(String.join(",", accountNames));
         result.setPortfolioBreakdownSnapshots(new TreeMap<>(breakdowns));
 
         result.setTransactions(transactions.values()
@@ -322,23 +300,6 @@ public class RevolutServiceImpl implements RevolutService {
         );
 
         return result;
-    }
-
-    private Map<String, List<PortfolioPeriod>> groupPortfolioPeriodsByAccount(Collection<PortfolioPeriod> portfolioPeriods) {
-        Map<String, List<PortfolioPeriod>> ptfPeriodsByAccount = new LinkedHashMap<>();
-        for (PortfolioPeriod portfolioPeriod : portfolioPeriods) {
-            String accountNumber = portfolioPeriod.getAccountNumber();
-            String accountName = portfolioPeriod.getAccountName();
-            List<PortfolioPeriod> accountPortfolioPeriods = ptfPeriodsByAccount.computeIfAbsent(accountNumber, k -> new ArrayList<>());
-            accountPortfolioPeriods.add(portfolioPeriod);
-            String accountName0 = accountPortfolioPeriods.get(0).getAccountName();
-            if (!accountName0.equals(accountName)) {
-                throw new InvalidStatementException(String.format("accountName mismatch: '%s' != '%s', accountNumber=%s",
-                        accountName0, accountName, accountNumber
-                ));
-            }
-        }
-        return ptfPeriodsByAccount;
     }
 
     private Object constructTransactionIdentityKey(Transaction transaction) {

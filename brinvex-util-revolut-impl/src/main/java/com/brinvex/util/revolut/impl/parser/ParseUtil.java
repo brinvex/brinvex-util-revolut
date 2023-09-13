@@ -19,17 +19,13 @@ import java.math.BigDecimal;
 
 class ParseUtil {
 
-    private static final String CCY_SYMBOL = "$";
-
     public static BigDecimal parseMoney(String s) {
         if (s == null || s.isBlank()) {
             return null;
         }
-        if (!s.contains(CCY_SYMBOL)) {
-            throw new IllegalArgumentException(String.format("Missing currency symbol: '%s'", s));
-        }
         String normalized = s
-                .replace(CCY_SYMBOL, "")
+                .replace("US$", "")
+                .replace("$", "")
                 .replace(",", "");
         return new BigDecimal(normalized);
     }

@@ -109,6 +109,22 @@ class RevolutServiceTest {
     }
 
     @Test
+    void processStatements_afterMigrationToEU() {
+        List<Path> testFilePaths = getTestFilePaths("trading-account-statement_2023-01-01_2023-09-13_en-us_89a584.pdf"::equals);
+        if (!testFilePaths.isEmpty()) {
+            PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(List.of(testFilePaths.get(0)));
+
+            List<Transaction> transactions = portfolioPeriod.getTransactions();
+
+            assertEquals(1, portfolioPeriod.getPortfolioBreakdownSnapshots().size());
+            assetBreakdownsAreConsistent(portfolioPeriod.getPortfolioBreakdownSnapshots().values());
+
+            assertTransactionsAreSorted(transactions);
+            assertTransactionsAttributesAreConsistent(transactions);
+        }
+    }
+
+    @Test
     void processStatements_nonContinuousPeriods() {
         List<Path> testFilePaths = getTestFilePaths(fileName ->
                 "trading-account-statement_2021-01-01_2021-12-31_en_b094bc.pdf".equals(fileName) ||
