@@ -35,34 +35,34 @@ public class AccountStatementTransactionLineParser {
 
         private static final Pattern TRANSACTION_DATE_SYMBOL_TYPE_PATTERN = Pattern.compile(
                 "(?<date>\\d{2}\\s+\\w{3}\\s+\\d{4}\\s+\\d{2}:\\d{2}:\\d{2}\\s+[A-Z]{3})" +
-                "(\\s+(?<symbol>.+))?" +
+                "(\\s*(?<symbol>.+))?" +
                 "\\s+(?<type>(Custody fee)|(Dividend)|(Cash top-up)|(Cash withdrawal)|(Trade - Market)|(Trade - Limit)|(Stock split)|(Spinoff))" +
                 "\\s+(?<numbersPart>.*)"
         );
 
         private static final Pattern VALUE_FEES_COMMISSION_PATTERN = Pattern.compile(
                 "" +
-                "\\s*(?<value>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
-                "\\s+(?<fees>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
-                "\\s+(?<commission>-?\\$(\\d+,)*\\d+(\\.\\d+)?)"
+                "\\s*(?<value>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s*(?<fees>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s*(?<commission>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)"
         );
 
         private static final Pattern QTY_VALUE_FEES_COMMISSIONS_PATTERN = Pattern.compile(
                 "" +
                 "\\s*(?<quantity>-?(\\d+,)*\\d+(\\.\\d+)?)" +
-                "\\s+(?<value>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
-                "\\s+(?<fees>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
-                "\\s+(?<commission>-?\\$(\\d+,)*\\d+(\\.\\d+)?)"
+                "\\s+(?<value>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<fees>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<commission>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)"
         );
 
         private static final Pattern TRADE_PATTERN = Pattern.compile(
                 "" +
                 "\\s*(?<quantity>-?(\\d+,)*\\d+(\\.\\d+)?)" +
-                "\\s+(?<price>-?\\$?(\\d+,)*\\d+(\\.\\d+)?)" +
-                "\\s+(?<side>(Buy)|(Sell))" +
-                "\\s+(?<value>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
-                "\\s+(?<fees>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
-                "\\s+(?<commission>-?\\$(\\d+,)*\\d+(\\.\\d+)?)"
+                "\\s+(?<price>-?(US)?\\$?(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s*(?<side>(Buy)|(Sell))" +
+                "\\s+(?<value>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<fees>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+(?<commission>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)"
         );
 
         private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss O");

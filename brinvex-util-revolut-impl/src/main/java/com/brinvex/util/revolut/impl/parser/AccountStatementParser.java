@@ -60,13 +60,13 @@ public class AccountStatementParser {
                 "Cash\\s+value\\s+(?<cash>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+\\d+(\\.\\d+)?\\s*%");
 
         private static final Pattern TRANSACTIONS_SECTION_START_PATTERN = Pattern.compile(
-                "Transactions");
+                "USD Transactions");
 
         private static final Pattern TRANSACTIONS_HEADER_PATTERN = Pattern.compile(
-                "Date\\s+Symbol\\s+Type\\s+Quantity\\s+Price\\s+Side\\s+Value\\s+Fees\\s+Commission");
+                "Date\\s*Symbol\\s*Type\\s*Quantity\\s*Price\\s*Side\\s*Value\\s*Fees\\s*Commission");
 
         private static final Pattern TRANSACTIONS_SECTION_END_PATTERN = Pattern.compile(
-                "Report\\s+lost\\s+or\\s+stolen\\s+card");
+                "(Report\\s+lost\\s+or\\s+stolen\\s+card)|(Get help directly In app)");
 
         private static final Pattern ACC_SUMMARY_STARTING_ENDING_PATTERN = Pattern.compile(
                 "Starting\\s+Ending");
@@ -296,6 +296,9 @@ public class AccountStatementParser {
                     break;
                 }
                 if (line.contains("Transfer from Revolut Bank UAB to Revolut Securities Europe UAB")) {
+                    continue;
+                }
+                if (line.contains("Transfer from Revolut Trading Ltd to Revolut Securities Europe UAB")) {
                     continue;
                 }
                 Transaction transaction = accStatementTransactionLineParser.parseTradingAccountTransactionLine(line);

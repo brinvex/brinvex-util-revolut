@@ -119,6 +119,7 @@ class RevolutServiceTest {
             assertEquals(1, portfolioPeriod.getPortfolioBreakdownSnapshots().size());
             assetBreakdownsAreConsistent(portfolioPeriod.getPortfolioBreakdownSnapshots().values());
 
+            assertTrue(transactions.size() > 10);
             assertTransactionsAreSorted(transactions);
             assertTransactionsAttributesAreConsistent(transactions);
         }
