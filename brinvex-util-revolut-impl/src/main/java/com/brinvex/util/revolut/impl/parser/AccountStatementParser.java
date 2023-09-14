@@ -60,7 +60,7 @@ public class AccountStatementParser {
                 "Cash\\s+value\\s+(?<cash>-?(US)?\\$(\\d+,)*\\d+(\\.\\d+)?)\\s+\\d+(\\.\\d+)?\\s*%");
 
         private static final Pattern TRANSACTIONS_SECTION_START_PATTERN = Pattern.compile(
-                "USD Transactions");
+                "(USD)?\\s*Transactions");
 
         private static final Pattern TRANSACTIONS_HEADER_PATTERN = Pattern.compile(
                 "Date\\s*Symbol\\s*Type\\s*Quantity\\s*Price\\s*Side\\s*Value\\s*Fees\\s*Commission");

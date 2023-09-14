@@ -46,6 +46,7 @@ import java.util.stream.Stream;
 import static java.lang.System.out;
 import static java.util.Comparator.comparing;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -65,6 +66,7 @@ class RevolutServiceTest {
             assertNotNull(portfolioPeriod);
             out.printf("%s/%s%n", portfolioPeriod.getAccountNumber(), portfolioPeriod.getAccountName());
             List<Transaction> transactions = portfolioPeriod.getTransactions();
+            assertFalse(transactions.isEmpty());
             for (int i = 0, transactionsSize = transactions.size(); i < transactionsSize; i++) {
                 Transaction transaction = transactions.get(i);
                 out.printf("[%s]: %s\n", i, transaction);
@@ -81,6 +83,7 @@ class RevolutServiceTest {
             assertTrue(portfolioPeriod.getAccountNumber().startsWith("RE"));
 
             List<Transaction> transactions = portfolioPeriod.getTransactions();
+            assertEquals(141, transactions.size());
 
             assertEquals(1, portfolioPeriod.getPortfolioBreakdownSnapshots().size());
             assetBreakdownsAreConsistent(portfolioPeriod.getPortfolioBreakdownSnapshots().values());
