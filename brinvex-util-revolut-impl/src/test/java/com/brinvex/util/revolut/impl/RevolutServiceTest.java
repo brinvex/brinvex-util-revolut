@@ -112,8 +112,8 @@ class RevolutServiceTest {
     }
 
     @Test
-    void processStatements_afterMigrationToEU() {
-        List<Path> testFilePaths = getTestFilePaths("trading-account-statement_2023-01-01_2023-09-13_en-us_89a584.pdf"::equals);
+    void processStatements_afterMigrationToEU_year() {
+        List<Path> testFilePaths = getTestFilePaths("trading-account-statement_2023-01-01_2023-09-15_en_56e32a.pdf"::equals);
         if (!testFilePaths.isEmpty()) {
             PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(List.of(testFilePaths.get(0)));
 
@@ -123,6 +123,23 @@ class RevolutServiceTest {
             assetBreakdownsAreConsistent(portfolioPeriod.getPortfolioBreakdownSnapshots().values());
 
             assertTrue(transactions.size() > 10);
+            assertTransactionsAreSorted(transactions);
+            assertTransactionsAttributesAreConsistent(transactions);
+        }
+    }
+
+    @Test
+    void processStatements_afterMigrationToEU_month() {
+        List<Path> testFilePaths = getTestFilePaths("trading-account-statement_2023-09-01_2023-09-15_en_f25725.pdf"::equals);
+        if (!testFilePaths.isEmpty()) {
+            PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(List.of(testFilePaths.get(0)));
+
+            List<Transaction> transactions = portfolioPeriod.getTransactions();
+
+            assertEquals(1, portfolioPeriod.getPortfolioBreakdownSnapshots().size());
+            assetBreakdownsAreConsistent(portfolioPeriod.getPortfolioBreakdownSnapshots().values());
+
+            assertEquals(6, transactions.size());
             assertTransactionsAreSorted(transactions);
             assertTransactionsAttributesAreConsistent(transactions);
         }

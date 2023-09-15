@@ -65,9 +65,6 @@ public class AccountStatementParser {
         private static final Pattern TRANSACTIONS_HEADER_PATTERN = Pattern.compile(
                 "Date\\s*Symbol\\s*Type\\s*Quantity\\s*Price\\s*Side\\s*Value\\s*Fees\\s*Commission");
 
-        private static final Pattern TRANSACTIONS_SECTION_END_PATTERN = Pattern.compile(
-                "(Report\\s+lost\\s+or\\s+stolen\\s+card)|(Get help directly In app)");
-
         private static final Pattern ACC_SUMMARY_STARTING_ENDING_PATTERN = Pattern.compile(
                 "Starting\\s+Ending");
         private static final Pattern ACC_SUMMARY_STOCKS_VALUE_PATTERN = Pattern.compile(
@@ -292,7 +289,13 @@ public class AccountStatementParser {
                 if (LazyHolder.TRANSACTIONS_HEADER_PATTERN.matcher(line).matches()) {
                     continue;
                 }
-                if (LazyHolder.TRANSACTIONS_SECTION_END_PATTERN.matcher(line).matches()) {
+                if (line.startsWith("This statement is provided by Revolut Securities Europe UAB")) {
+                    break;
+                }
+                if (line.startsWith("Get help directly In app")) {
+                    break;
+                }
+                if (line.startsWith("Report lost or stolen card")) {
                     break;
                 }
                 if (line.contains("Transfer from Revolut Bank UAB to Revolut Securities Europe UAB")) {
