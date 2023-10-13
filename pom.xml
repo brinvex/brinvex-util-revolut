@@ -135,7 +135,7 @@
             <id>release</id>
 
             <properties>
-                <activate-settings-xml-gpg-properties>true</activate-settings-xml-gpg-properties>
+                <activate-gpg>true</activate-gpg>
             </properties>
             <build>
                 <plugins>
@@ -247,7 +247,7 @@
                         <configuration>
                             <autoVersionSubmodules>true</autoVersionSubmodules>
                             <useReleaseProfile>false</useReleaseProfile>
-                            <releaseProfiles>release,settings-xml-gpg-properties</releaseProfiles>
+                            <releaseProfiles>release,gpg</releaseProfiles>
                             <goals>deploy</goals>
                             <pushChanges>false</pushChanges>
                             <scmCommentPrefix xml:space="preserve">release: </scmCommentPrefix>
