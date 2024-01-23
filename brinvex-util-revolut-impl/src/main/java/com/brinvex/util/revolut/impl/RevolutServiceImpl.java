@@ -149,14 +149,17 @@ public class RevolutServiceImpl implements RevolutService {
         List<String> lines = pdfReader.readPdfLines(inputStream);
 
         String accountStatementTitle = "Account Statement";
-        String profitAndLossTitle = "Profit and Loss Statement";
+        String profitAndLossTitle1 = "Profit and Loss Statement";
+        String profitAndLossTitle2 = "EUR Profit and Loss Statement";
 
         String line0 = lines.get(0);
         String line1 = lines.get(1);
         List<PortfolioValue> portfolioValues;
         if (accountStatementTitle.equals(line0) || accountStatementTitle.equals(line1)) {
             portfolioValues = accountStatementParser.parsePortfolioValueFromTradingAccountStatement(lines);
-        } else if (profitAndLossTitle.equals(line0) || profitAndLossTitle.equals(line1)) {
+        } else if (profitAndLossTitle1.equals(line0) || profitAndLossTitle1.equals(line1)
+                || (profitAndLossTitle2.equals(line0) || profitAndLossTitle2.equals(line1))
+        ) {
             //no-op
             portfolioValues = emptyList();
         } else {
@@ -171,14 +174,17 @@ public class RevolutServiceImpl implements RevolutService {
         List<String> lines = pdfReader.readPdfLines(inputStream);
 
         String accountStatementTitle = "Account Statement";
-        String profitAndLossTitle = "Profit and Loss Statement";
+        String profitAndLossTitle1 = "Profit and Loss Statement";
+        String profitAndLossTitle2 = "EUR Profit and Loss Statement";
 
         String line0 = lines.get(0);
         String line1 = lines.get(1);
         PortfolioPeriod portfolioPeriod;
         if (accountStatementTitle.equals(line0) || accountStatementTitle.equals(line1)) {
             portfolioPeriod = accountStatementParser.parseTradingAccountStatement(lines);
-        } else if (profitAndLossTitle.equals(line0) || profitAndLossTitle.equals(line1)) {
+        } else if (profitAndLossTitle1.equals(line0) || profitAndLossTitle1.equals(line1)
+                || (profitAndLossTitle2.equals(line0) || profitAndLossTitle2.equals(line1))
+        ) {
             portfolioPeriod = profitAndLossStatementParser.parseProfitAndLossStatement(lines);
         } else {
             throw new IllegalArgumentException(String.format("Could not detect statement type '%s', '%s'", line0, line1));

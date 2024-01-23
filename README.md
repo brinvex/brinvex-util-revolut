@@ -22,12 +22,12 @@ Revolut report formats and makes them available in simple consistent form for fu
 <dependency>
     <groupId>com.brinvex.util</groupId>
     <artifactId>brinvex-util-revolut-api</artifactId>
-    <version>4.2.3</version>
+    <version>4.3.0</version>
 </dependency>
 <dependency>
     <groupId>com.brinvex.util</groupId>
     <artifactId>brinvex-util-revolut-impl</artifactId>
-    <version>4.2.3</version>
+    <version>4.3.0</version>
     <scope>runtime</scope>
 </dependency>
 ````
@@ -36,10 +36,10 @@ Revolut report formats and makes them available in simple consistent form for fu
 RevolutService revolutSvc = RevolutServiceFactory.INSTANCE.getService(); 
 
 PortfolioPeriod ptfPeriod = revolutSvc.processStatements(List.of(
-    "c:/tmp/trading-account-statement-2021.pdf",    
     "c:/tmp/trading-account-statement-2022.pdf",    
-    "c:/tmp/profit-and-loss-statement-2021.pdf",    
+    "c:/tmp/trading-account-statement-2023.pdf",    
     "c:/tmp/profit-and-loss-statement-2022.pdf",    
+    "c:/tmp/profit-and-loss-statement-2023.pdf",    
 ));
 ````
 

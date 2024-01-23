@@ -15,16 +15,23 @@
  */
 package com.brinvex.util.revolut.impl.parser;
 
+import com.brinvex.util.revolut.api.model.Currency;
 import com.brinvex.util.revolut.api.model.PortfolioPeriod;
 import com.brinvex.util.revolut.api.model.Transaction;
+import com.brinvex.util.revolut.api.model.TransactionType;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import static com.brinvex.util.revolut.impl.parser.ParseUtil.parseMoney;
 
 @SuppressWarnings("DuplicatedCode")
 public class ProfitAndLossStatementParser {
@@ -49,10 +56,39 @@ public class ProfitAndLossStatementParser {
         private static final Pattern TRANSACTION_SECTION_END_PATTERN = Pattern.compile(
                 "Total\\s+.*");
 
+        private static final Pattern DIVIDEND_START_LINE_PATTERN1 = Pattern.compile(
+                "(?<date>\\d{4}-\\d{2}-\\d{2})" +
+                "\\s+(?<symbol>\\S+)" +
+                "\\s+(?<securityName>.+)" +
+                "\\s+(?<isin>\\S{12})" +
+                "\\s+(?<country>\\S{2}+)" +
+                "\\s+US(?<grossAmount>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+US(?<tax>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+US(?<netAmount>-?\\$(\\d+,)*\\d+(\\.\\d+)?)"
+        );
+
+        private static final Pattern DIVIDEND_START_LINE_PATTERN2 = Pattern.compile(
+                "(?<date>\\d{4}-\\d{2}-\\d{2})" +
+                "\\s+(?<symbol>\\S+)" +
+                "\\s+(?<securityName>.+)" +
+                "\\s+(?<isin>\\S{12})" +
+                "\\s+(?<country>\\S{2}+)" +
+                "\\s+US(?<grossAmount>-?\\$(\\d+,)*\\d+(\\.\\d+)?)" +
+                "\\s+-" +
+                "\\s+US(?<netAmount>-?\\$(\\d+,)*\\d+(\\.\\d+)?)"
+        );
+
+        private static final Pattern DIVIDEND_START_LINE_PATTERN3 = Pattern.compile(
+                "(?<date>\\d{4}-\\d{2}-\\d{2})" +
+                "\\s+(?<symbol>\\S+)" +
+                "\\s+(?<securityName>.+)" +
+                "\\s+(?<isin>\\S{12})" +
+                "\\s+(?<country>\\S{2}+)" +
+                "\\s+US(?<grossAmount>-?\\$(\\d+,)*\\d+(\\.\\d+)?)"
+        );
+
         private static final DateTimeFormatter PERIOD_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd MMM yyyy");
     }
-
-    private final ProfitAndLossDividendLineParser profitAndLossDividendLineParser = new ProfitAndLossDividendLineParser();
 
     public PortfolioPeriod parseProfitAndLossStatement(List<String> lines) {
 
@@ -116,11 +152,21 @@ public class ProfitAndLossStatementParser {
 
     private List<Transaction> parseProfitAndLossStatementDividendTransactions(List<String> lines) {
         List<Transaction> dividends = new ArrayList<>();
+        boolean usdLinesStarted = false;
         boolean dividendsLinesStarted = false;
+        lines = lines.stream()
+                .filter(l -> !l.equals("Date Symbol Security name ISIN Country Gross Amount Withholding Tax Net Amount"))
+                .collect(Collectors.toList());
         for (int i = 0, linesSize = lines.size(); i < linesSize; i++) {
             String line = stripToEmpty(lines.get(i));
             try {
                 if (line.isBlank()) {
+                    continue;
+                }
+                if (!usdLinesStarted) {
+                    if (line.equals("USD Profit and Loss Statement")) {
+                        usdLinesStarted = true;
+                    }
                     continue;
                 }
                 if (!dividendsLinesStarted) {
@@ -136,8 +182,76 @@ public class ProfitAndLossStatementParser {
                     break;
                 }
 
-                Transaction dividendTransaction = profitAndLossDividendLineParser.parseProfitAndLossDividendLine(line);
-                dividends.add(dividendTransaction);
+                Transaction dividendTran = new Transaction();
+                dividendTran.setCurrency(Currency.USD);
+                dividendTran.setType(TransactionType.DIVIDEND);
+                dividendTran.setFees(null);
+                dividendTran.setCommission(null);
+                dividends.add(dividendTran);
+
+                Matcher matcher = LazyHolder.DIVIDEND_START_LINE_PATTERN1.matcher(line);
+                if (matcher.find()) {
+                    dividendTran.setDate(LocalDate.parse(matcher.group("date")).atStartOfDay(ZoneId.of("GMT")).withFixedOffsetZone());
+                    dividendTran.setSymbol(matcher.group("symbol"));
+                    dividendTran.setSecurityName(matcher.group("securityName"));
+                    dividendTran.setIsin(matcher.group("isin"));
+                    dividendTran.setCountry(matcher.group("country"));
+                    dividendTran.setQuantity(null);
+                    dividendTran.setPrice(null);
+                    dividendTran.setGrossAmount(parseMoney(matcher.group("grossAmount")));
+                    dividendTran.setWithholdingTax(parseMoney(matcher.group("tax")));
+                    dividendTran.setValue(parseMoney(matcher.group("netAmount")));
+
+                    i = i + 3;
+
+                } else {
+                    matcher = LazyHolder.DIVIDEND_START_LINE_PATTERN2.matcher(line);
+                    if (matcher.find()) {
+                        dividendTran.setDate(LocalDate.parse(matcher.group("date")).atStartOfDay(ZoneId.of("GMT")).withFixedOffsetZone());
+                        dividendTran.setSymbol(matcher.group("symbol"));
+                        dividendTran.setSecurityName(matcher.group("securityName"));
+                        dividendTran.setIsin(matcher.group("isin"));
+                        dividendTran.setCountry(matcher.group("country"));
+                        dividendTran.setQuantity(null);
+                        dividendTran.setPrice(null);
+                        dividendTran.setGrossAmount(parseMoney(matcher.group("grossAmount")));
+                        dividendTran.setWithholdingTax(BigDecimal.ZERO);
+                        dividendTran.setValue(parseMoney(matcher.group("netAmount")));
+
+                        i = i + 3;
+                    } else {
+                        matcher = LazyHolder.DIVIDEND_START_LINE_PATTERN3.matcher(line);
+                        if (!matcher.find()) {
+                            throw new IllegalStateException("Pattern not found: " + line);
+                        }
+                        dividendTran.setDate(LocalDate.parse(matcher.group("date")).atStartOfDay(ZoneId.of("GMT")).withFixedOffsetZone());
+                        dividendTran.setSymbol(matcher.group("symbol"));
+                        dividendTran.setSecurityName(matcher.group("securityName"));
+                        dividendTran.setIsin(matcher.group("isin"));
+                        dividendTran.setCountry(matcher.group("country"));
+                        dividendTran.setQuantity(null);
+                        dividendTran.setPrice(null);
+                        dividendTran.setGrossAmount(parseMoney(matcher.group("grossAmount")));
+
+                        String taxLine;
+                        String valueLine;
+                        if (lines.get(i + 2).startsWith("Rate:")) {
+                            taxLine = lines.get(i + 3);
+                            valueLine = lines.get(i + 5);
+                            i = i + 6;
+                        } else {
+                            taxLine = lines.get(i + 2);
+                            valueLine = lines.get(i + 4);
+                            i = i + 6;
+                        }
+                        if (taxLine.isBlank() || taxLine.equals("-")) {
+                            dividendTran.setWithholdingTax(BigDecimal.ZERO);
+                        } else {
+                            dividendTran.setWithholdingTax(parseMoney(taxLine));
+                        }
+                        dividendTran.setValue(parseMoney(valueLine));
+                    }
+                }
 
             } catch (Exception e) {
                 throw new IllegalStateException(String.format("Exception while parsing %s.line: '%s'", (i + 1), line), e);

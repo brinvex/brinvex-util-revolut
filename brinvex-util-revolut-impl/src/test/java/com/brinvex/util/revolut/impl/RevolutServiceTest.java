@@ -31,6 +31,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -59,9 +60,10 @@ class RevolutServiceTest {
     private final RevolutService revolutSvc = RevolutServiceFactory.INSTANCE.getService();
 
     @Test
-    void processStatements_parse() {
+    void processStatements_parse1() {
         List<Path> testFilePaths = getTestFilePaths();
         if (!testFilePaths.isEmpty()) {
+            LocalDate properDataEnd = LocalDate.parse("2024-01-01");
             PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(testFilePaths);
             assertNotNull(portfolioPeriod);
             out.printf("%s/%s%n", portfolioPeriod.getAccountNumber(), portfolioPeriod.getAccountName());
@@ -70,6 +72,43 @@ class RevolutServiceTest {
             for (int i = 0, transactionsSize = transactions.size(); i < transactionsSize; i++) {
                 Transaction transaction = transactions.get(i);
                 out.printf("[%s]: %s\n", i, transaction);
+                if (transaction.getType().equals(TransactionType.DIVIDEND)) {
+                    if (transaction.getDate().toLocalDate().isBefore(properDataEnd)) {
+                        assertNotNull(transaction.getWithholdingTax(), transaction::toString);
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void processStatements_parse2() {
+        List<Path> testFilePaths = getTestFilePaths(f -> f.contains("trading-pnl-statement"));
+        if (!testFilePaths.isEmpty()) {
+            PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(testFilePaths);
+            assertNotNull(portfolioPeriod);
+            out.printf("%s/%s%n", portfolioPeriod.getAccountNumber(), portfolioPeriod.getAccountName());
+            List<Transaction> transactions = portfolioPeriod.getTransactions();
+            assertFalse(transactions.isEmpty());
+            BigDecimal tolerance = new BigDecimal("0.01");
+            BigDecimal taxRatioMin = new BigDecimal("0.01");
+            BigDecimal taxRatioMax = new BigDecimal("0.45");
+            for (int i = 0, transactionsSize = transactions.size(); i < transactionsSize; i++) {
+                Transaction transaction = transactions.get(i);
+                out.printf("[%s]: %s\n", i, transaction);
+                if (transaction.getType().equals(TransactionType.DIVIDEND)) {
+                    BigDecimal withholdingTax = transaction.getWithholdingTax();
+                    BigDecimal grossAmount = transaction.getGrossAmount();
+                    BigDecimal value = transaction.getValue();
+                    assertNotNull(withholdingTax, transaction::toString);
+                    assertTrue(grossAmount.subtract(withholdingTax).subtract(value).abs().compareTo(tolerance) < 0, transaction::toString);
+
+                    if (withholdingTax.compareTo(BigDecimal.ZERO) != 0) {
+                        BigDecimal taxPct = withholdingTax.divide(grossAmount, 2, RoundingMode.HALF_UP);
+                        assertTrue(taxPct.compareTo(taxRatioMin) > 0, transaction::toString);
+                        assertTrue(taxPct.compareTo(taxRatioMax) < 0, transaction::toString);
+                    }
+                }
             }
         }
     }

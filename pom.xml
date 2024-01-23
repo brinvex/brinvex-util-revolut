@@ -155,6 +155,7 @@
                                         <exclude>src/main/resources/**</exclude>
                                         <exclude>src/test/resources/**</exclude>
                                         <exclude>**/.gitignore</exclude>
+                                        <exclude>**/release.bat</exclude>
                                         <exclude>**/.LICENSE</exclude>
                                         <exclude>**/.README</exclude>
                                         <exclude>.run/**</exclude>
