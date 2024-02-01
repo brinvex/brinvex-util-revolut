@@ -86,11 +86,20 @@ public class AccountStatementParser {
         String accountNumber = null;
         LocalDate periodFrom = null;
         LocalDate periodTo = null;
+        boolean eurLinesStarted = false;
+        boolean usdLinesStarted = false;
+
         for (int i = 0, linesSize = lines.size(); i < linesSize; i++) {
             String line = lines.get(i);
             line = stripToEmpty(line);
             if (line.isBlank()) {
                 continue;
+            }
+            if (!eurLinesStarted) {
+                if (line.equals("EUR Account summary")) {
+                    eurLinesStarted = true;
+                    continue;
+                }
             }
             {
                 Matcher matcher = LazyHolder.ACCOUNT_NAME_PATTERN.matcher(line);
@@ -113,6 +122,12 @@ public class AccountStatementParser {
                     periodTo = LocalDate.parse(matcher.group("periodTo"), LazyHolder.PERIOD_DATE_FORMATTER);
                     continue;
                 }
+            }
+            if (eurLinesStarted && !usdLinesStarted) {
+                if (line.equals("USD Account summary")) {
+                    usdLinesStarted = true;
+                }
+                continue;
             }
             {
                 if (LazyHolder.ACC_SUMMARY_STARTING_ENDING_PATTERN.matcher(line).find()) {
