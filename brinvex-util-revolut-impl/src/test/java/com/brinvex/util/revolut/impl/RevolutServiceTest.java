@@ -40,6 +40,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -188,7 +189,7 @@ class RevolutServiceTest {
     void processStatements_nonContinuousPeriods() {
         List<Path> testFilePaths = getTestFilePaths(fileName ->
                 "trading-account-statement_2021-01-01_2021-12-31_en_b094bc.pdf".equals(fileName) ||
-                "trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf".equals(fileName)
+                        "trading-account-statement_2022-01-01_2022-12-31_en_7c6251.pdf".equals(fileName)
         );
         if (testFilePaths.size() == 2) {
             assertThrows(InvalidStatementException.class, () -> revolutSvc.processStatements(testFilePaths));
@@ -216,6 +217,21 @@ class RevolutServiceTest {
         Map<LocalDate, PortfolioValue> portfolioValues = revolutSvc.getPortfolioValues(getTestFilePaths());
         assertNotNull(portfolioValues);
     }
+
+    @Test
+    void processStatements_parse3() {
+        List<Path> testFilePaths = getTestFilePaths(f ->
+                f.contains("2024-01-01_2024-02-01") ||
+                        f.contains("2024-02-01_2024-03-01") ||
+                        f.contains("2024-03-01_2024-04-01")
+        );
+        if (!testFilePaths.isEmpty()) {
+            Map<LocalDate, PortfolioValue> portfolioPeriod = revolutSvc.getPortfolioValues(testFilePaths);
+            assertNotNull(portfolioPeriod);
+            assertEquals(5, portfolioPeriod.size());
+        }
+    }
+
 
     private void assertTransactionsAttributesAreConsistent(List<Transaction> transactions) {
         for (Transaction transaction : transactions) {
@@ -299,6 +315,14 @@ class RevolutServiceTest {
 
     private List<Path> getTestFilePaths() {
         return getTestFilePaths(fileName -> true);
+    }
+
+    private List<Path> getTestFilePaths(Collection<String> fileNames) {
+        return getTestFilePaths(f -> fileNames == null || fileNames.contains(f));
+    }
+
+    private List<Path> getTestFilePaths(String... fileNames) {
+        return getTestFilePaths(Set.of(fileNames));
     }
 
     private List<Path> getTestFilePaths(Predicate<String> fileNameFilter) {
