@@ -1,5 +1,5 @@
 set JAVA_HOME="C:\tools\java\jdk-21.0.1"
-set MVN=C:\tools\mvn\mvn-3.8.7\bin\mvn
+set MVN=C:\tools\mvn\mvn-3.9.6\bin\mvn
 
 REM Merge feature branch into master
 REM Update version in README

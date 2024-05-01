@@ -106,41 +106,7 @@ public class RevolutServiceImpl implements RevolutService {
         TreeMap<LocalDate, PortfolioValue> results = new TreeMap<>();
         for (PortfolioValue ptfValue : ptfValues) {
             LocalDate day = ptfValue.getDay();
-            String accountNumber = ptfValue.getAccountNumber();
-            String accountName = ptfValue.getAccountName();
-
-            PortfolioValue oldPtfValue = results.get(day);
-            if (oldPtfValue != null) {
-                {
-                    BigDecimal oldCashValue = oldPtfValue.getCashValue();
-                    BigDecimal newCashValue = ptfValue.getCashValue();
-                    if (oldCashValue.compareTo(newCashValue) != 0) {
-                        throw new RevolutServiceException(String.format("Different cash value: %s, %s/%s",
-                                day, accountNumber, accountName
-                        ));
-                    }
-                }
-                {
-                    BigDecimal oldStocksValue = oldPtfValue.getStocksValue();
-                    BigDecimal newStocksValue = ptfValue.getStocksValue();
-                    if (oldStocksValue.compareTo(newStocksValue) != 0) {
-                        throw new RevolutServiceException(String.format("Different stocks value: %s, %s/%s",
-                                day, accountNumber, accountName
-                        ));
-                    }
-                }
-                {
-                    BigDecimal oldTotalValue = oldPtfValue.getStocksValue();
-                    BigDecimal newTotalValue = ptfValue.getStocksValue();
-                    if (oldTotalValue.compareTo(newTotalValue) != 0) {
-                        throw new RevolutServiceException(String.format("Different total value: %s, %s/%s",
-                                day, accountNumber, accountName
-                        ));
-                    }
-                }
-            } else {
-                results.put(day, ptfValue);
-            }
+            results.putIfAbsent(day, ptfValue);
         }
         return results;
     }
