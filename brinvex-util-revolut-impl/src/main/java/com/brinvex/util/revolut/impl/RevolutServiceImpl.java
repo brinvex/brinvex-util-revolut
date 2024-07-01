@@ -54,6 +54,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparing;
 import static java.util.Optional.ofNullable;
 
+@SuppressWarnings("DuplicatedCode")
 public class RevolutServiceImpl implements RevolutService {
 
     private final PdfReader pdfReader = new PdfReader();

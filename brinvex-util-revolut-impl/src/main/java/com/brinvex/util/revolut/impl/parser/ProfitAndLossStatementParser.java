@@ -48,7 +48,7 @@ public class ProfitAndLossStatementParser {
                 "Period\\s+(?<periodFrom>\\d{2}\\s[A-Za-z]{3}\\s\\d{4})\\s-\\s(?<periodTo>\\d{2}\\s[A-Za-z]{3}\\s\\d{4})");
 
         private static final Pattern TRANSACTION_SECTION_START_PATTERN = Pattern.compile(
-                "Dividends");
+                "(Dividends)|(Other income & fees)");
 
         private static final Pattern TRANSACTION_HEADER_PATTERN = Pattern.compile(
                 "Date\\s+Symbol\\s+Security\\s+name\\s+ISIN\\s+Country\\s+Gross\\s+Amount\\s+Withholding\\s+Tax\\s+Net\\s+Amount");

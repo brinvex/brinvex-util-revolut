@@ -102,6 +102,7 @@ class RevolutServiceTest {
                     BigDecimal grossAmount = transaction.getGrossAmount();
                     BigDecimal value = transaction.getValue();
                     assertNotNull(withholdingTax, transaction::toString);
+                    assertNotNull(transaction.getIsin(), transaction::toString);
                     assertTrue(grossAmount.subtract(withholdingTax).subtract(value).abs().compareTo(tolerance) < 0, transaction::toString);
 
                     if (withholdingTax.compareTo(BigDecimal.ZERO) != 0) {
@@ -113,6 +114,40 @@ class RevolutServiceTest {
             }
         }
     }
+
+    @Test
+    void processStatements_parse4() {
+        List<Path> testFilePaths = getTestFilePaths(f -> f.contains("trading-pnl-statement_2024-01-01_2024-07-02"));
+        if (!testFilePaths.isEmpty()) {
+            PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(testFilePaths);
+            assertNotNull(portfolioPeriod);
+            out.printf("%s/%s%n", portfolioPeriod.getAccountNumber(), portfolioPeriod.getAccountName());
+            List<Transaction> transactions = portfolioPeriod.getTransactions();
+            assertFalse(transactions.isEmpty());
+            BigDecimal tolerance = new BigDecimal("0.01");
+            BigDecimal taxRatioMin = new BigDecimal("0.01");
+            BigDecimal taxRatioMax = new BigDecimal("0.45");
+            for (int i = 0, transactionsSize = transactions.size(); i < transactionsSize; i++) {
+                Transaction transaction = transactions.get(i);
+                out.printf("[%s]: %s\n", i, transaction);
+                if (transaction.getType().equals(TransactionType.DIVIDEND)) {
+                    BigDecimal withholdingTax = transaction.getWithholdingTax();
+                    BigDecimal grossAmount = transaction.getGrossAmount();
+                    BigDecimal value = transaction.getValue();
+                    assertNotNull(withholdingTax, transaction::toString);
+                    assertNotNull(transaction.getIsin(), transaction::toString);
+                    assertTrue(grossAmount.subtract(withholdingTax).subtract(value).abs().compareTo(tolerance) < 0, transaction::toString);
+
+                    if (withholdingTax.compareTo(BigDecimal.ZERO) != 0) {
+                        BigDecimal taxPct = withholdingTax.divide(grossAmount, 2, RoundingMode.HALF_UP);
+                        assertTrue(taxPct.compareTo(taxRatioMin) > 0, transaction::toString);
+                        assertTrue(taxPct.compareTo(taxRatioMax) < 0, transaction::toString);
+                    }
+                }
+            }
+        }
+    }
+
 
     @Test
     void processStatements_oneAccountStatement() {
@@ -200,14 +235,13 @@ class RevolutServiceTest {
     void processStatements_dividendDuplicates() {
         PortfolioPeriod portfolioPeriod = revolutSvc.processStatements(getTestFilePaths());
 
-        Map<String, Map<LocalDate, Transaction>> dividends = new LinkedHashMap<>();
+        Map<String, Transaction> dividends = new LinkedHashMap<>();
         for (Transaction t : portfolioPeriod.getTransactions()) {
             if (!t.getType().equals(TransactionType.DIVIDEND)) {
                 continue;
             }
-            String symbol = t.getSymbol();
-            LocalDate date = t.getDate().toLocalDate();
-            Transaction oldDiv = dividends.computeIfAbsent(symbol, k -> new LinkedHashMap<>()).put(date, t);
+            String k = String.format("%s/%s/%s", t.getSymbol(), t.getDate().toLocalDate(), t.getValue());
+            Transaction oldDiv = dividends.put(k, t);
             assertNull(oldDiv, () -> String.format("\n%s\n%s", oldDiv, t));
         }
     }
