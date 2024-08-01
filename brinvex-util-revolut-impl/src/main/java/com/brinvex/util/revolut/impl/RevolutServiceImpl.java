@@ -43,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Supplier;
@@ -102,7 +103,7 @@ public class RevolutServiceImpl implements RevolutService {
                     }
                 })
                 .flatMap(Collection::stream)
-                .collect(Collectors.toList());
+                .toList();
 
         TreeMap<LocalDate, PortfolioValue> results = new TreeMap<>();
         for (PortfolioValue ptfValue : ptfValues) {
@@ -202,10 +203,38 @@ public class RevolutServiceImpl implements RevolutService {
 
             List<Transaction> periodTransactions = portfolioPeriod.getTransactions();
             if (periodTransactions != null) {
-                for (Transaction tran : periodTransactions) {
+                for (int i = 0, n = periodTransactions.size(); i < n; i++) {
+                    Transaction tran = periodTransactions.get(i);
+                    Transaction nextTran = i == n - 1 ? null : periodTransactions.get(i + 1);
 
                     TransactionType tranType = tran.getType();
                     if (tranType.equals(TransactionType.DIVIDEND)) {
+                        if (nextTran != null
+                                && nextTran.getType().equals(TransactionType.DIVIDEND)
+                                && nextTran.getSymbol().equals(tran.getSymbol())
+                                && nextTran.getDate().equals(tran.getDate())
+                                && Objects.equals(nextTran.getIsin(), tran.getIsin())
+                                && Objects.equals(nextTran.getSecurityName(), tran.getSecurityName())
+                                && Objects.equals(nextTran.getCountry(), tran.getCountry())
+                                && Objects.equals(nextTran.getCurrency(), tran.getCurrency())
+                        ) {
+                            if (tran.getGrossAmount() != null && nextTran.getGrossAmount() != null) {
+                                tran.setGrossAmount(tran.getGrossAmount().add(nextTran.getGrossAmount()));
+                            }
+                            if (tran.getWithholdingTax() != null && nextTran.getWithholdingTax() != null) {
+                                tran.setWithholdingTax(tran.getWithholdingTax().add(nextTran.getWithholdingTax()));
+                            }
+                            if (tran.getValue() != null && nextTran.getValue() != null) {
+                                tran.setValue(tran.getValue().add(nextTran.getValue()));
+                            }
+                            if (tran.getFees() != null && nextTran.getFees() != null) {
+                                tran.setFees(tran.getFees().add(nextTran.getFees()));
+                            }
+                            if (tran.getCommission() != null && nextTran.getCommission() != null) {
+                                tran.setCommission(tran.getCommission().add(nextTran.getCommission()));
+                            }
+                            i++;
+                        }
                         Object divTranKey = constructDividendTransactionIdentityKey(tran);
                         Transaction oldDivTran = dividendTransactions.get(divTranKey);
                         if (oldDivTran != null) {

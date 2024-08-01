@@ -36,6 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -263,6 +264,40 @@ class RevolutServiceTest {
             Map<LocalDate, PortfolioValue> portfolioPeriod = revolutSvc.getPortfolioValues(testFilePaths);
             assertNotNull(portfolioPeriod);
             assertEquals(5, portfolioPeriod.size());
+        }
+    }
+
+    @Test
+    void processStatements_dividendIsin() {
+        List<Path> testFilePaths = getTestFilePaths();
+        if (!testFilePaths.isEmpty()) {
+            List<Transaction> divTrans = revolutSvc.processStatements(testFilePaths)
+                    .getTransactions()
+                    .stream()
+                    .filter(t -> TransactionType.DIVIDEND.equals(t.getType()))
+                    .toList();
+            List<Transaction> noIsinDivTrans = divTrans.stream().filter(t -> t.getIsin() == null || t.getIsin().isBlank()).toList();
+            assertEquals(0, noIsinDivTrans.size(), noIsinDivTrans::toString);
+        }
+    }
+
+    @Test
+    void processStatements_dividendMerge() {
+        List<Path> testFilePaths = getTestFilePaths();
+        if (!testFilePaths.isEmpty()) {
+            List<Transaction> trans1 = revolutSvc.processStatements(testFilePaths)
+                    .getTransactions()
+                    .stream()
+                    .filter(t -> "COP".equals(t.getSymbol()))
+                    .toList();
+
+            List<Transaction> trans2 = trans1.stream()
+                    .filter(t -> t.getDate().getYear() == 2024 && t.getDate().getMonth() == Month.MARCH)
+                    .toList();
+
+            assertEquals(1, trans2.size());
+            assertEquals(trans2.get(0).getGrossAmount().toString(), "16.38");
+            assertEquals(trans2.get(0).getValue().toString(), "13.92");
         }
     }
 
