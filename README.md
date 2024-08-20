@@ -1,6 +1,6 @@
-# Brinvex-Util-Revolut
+## Brinvex-Util-Revolut
 
-## Introduction
+### Introduction
 
 _Brinvex-Util-Revolut_ is a compact Java library which enables developers 
 to easily extract and work with data from Revolut trading account reports.
@@ -15,19 +15,31 @@ _profit-and-loss-csv_, _account-statement-pdf_, _account-statement-csv_ do not.
 **_Brinvex-Util-Revolut_ extracts and consolidates data coming from various
 Revolut report formats and makes them available in simple consistent form for further processing.**
 
-## How to use it
+### Maven dependency
  
-- Add dependencies
 ````
+<properties>
+     <brinvex-util-revolut.version>4.5.0</brinvex-revolut-ibkr.version>
+</properties>
+
+<repository>
+    <id>repository.brinvex</id>
+    <name>Brinvex Repository</name>
+    <url>https://github.com/brinvex/brinvex-repo/raw/main/</url>
+    <snapshots>
+        <enabled>false</enabled>
+    </snapshots>
+</repository>
+
 <dependency>
     <groupId>com.brinvex.util</groupId>
     <artifactId>brinvex-util-revolut-api</artifactId>
-    <version>4.4.0</version>
+    <version>${brinvex-util-revolut.version}</version>
 </dependency>
 <dependency>
     <groupId>com.brinvex.util</groupId>
     <artifactId>brinvex-util-revolut-impl</artifactId>
-    <version>4.4.0</version>
+    <version>${brinvex-util-revolut.version}</version>
     <scope>runtime</scope>
 </dependency>
 ````

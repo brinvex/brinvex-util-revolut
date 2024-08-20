@@ -15,7 +15,10 @@
  */
 package com.brinvex.util.revolut.impl.pdfreader;
 
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.io.RandomAccessReadBuffer;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.PDFTextStripperByArea;
 
@@ -29,7 +32,7 @@ public class PdfReader {
 
     public List<String> readPdfLines(InputStream pdfInputStream) {
 
-        try (PDDocument document = PDDocument.load(pdfInputStream)) {
+        try (PDDocument document = Loader.loadPDF(new RandomAccessReadBuffer(pdfInputStream))) {
             if (document.isEncrypted()) {
                 throw new IllegalArgumentException("Cannot read encrypted pdf");
             }
@@ -43,6 +46,8 @@ public class PdfReader {
 
             return Arrays.asList(text.split("\\r?\\n"));
 
+        } catch (InvalidPasswordException e) {
+            throw new IllegalArgumentException("Cannot read encrypted pdf", e);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
