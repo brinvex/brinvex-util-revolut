@@ -43,7 +43,8 @@ Revolut report formats and makes them available in simple consistent form for fu
     <scope>runtime</scope>
 </dependency>
 ````
-- Process many _trading-account-statement_ or _profit-and-loss-statement_ PDF files and enjoy the result 
+### Example
+Process many _trading-account-statement_ or _profit-and-loss-statement_ PDF files and enjoy the result 
 ````
 RevolutService revolutSvc = RevolutServiceFactory.INSTANCE.getService(); 
 
