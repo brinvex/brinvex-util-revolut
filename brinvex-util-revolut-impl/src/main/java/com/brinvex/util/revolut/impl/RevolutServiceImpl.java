@@ -218,20 +218,14 @@ public class RevolutServiceImpl implements RevolutService {
                                 && Objects.equals(nextTran.getCountry(), tran.getCountry())
                                 && Objects.equals(nextTran.getCurrency(), tran.getCurrency())
                         ) {
-                            if (tran.getGrossAmount() != null && nextTran.getGrossAmount() != null) {
-                                tran.setGrossAmount(tran.getGrossAmount().add(nextTran.getGrossAmount()));
+                            tran.setGrossAmount(tran.getGrossAmount().add(nextTran.getGrossAmount()));
+                            tran.setWithholdingTax(tran.getWithholdingTax().add(nextTran.getWithholdingTax()));
+                            tran.setValue(tran.getValue().add(nextTran.getValue()));
+                            if (tran.getFees() != null || nextTran.getFees() != null) {
+                                throw new IllegalStateException();
                             }
-                            if (tran.getWithholdingTax() != null && nextTran.getWithholdingTax() != null) {
-                                tran.setWithholdingTax(tran.getWithholdingTax().add(nextTran.getWithholdingTax()));
-                            }
-                            if (tran.getValue() != null && nextTran.getValue() != null) {
-                                tran.setValue(tran.getValue().add(nextTran.getValue()));
-                            }
-                            if (tran.getFees() != null && nextTran.getFees() != null) {
-                                tran.setFees(tran.getFees().add(nextTran.getFees()));
-                            }
-                            if (tran.getCommission() != null && nextTran.getCommission() != null) {
-                                tran.setCommission(tran.getCommission().add(nextTran.getCommission()));
+                            if (tran.getCommission() != null || nextTran.getCommission() != null) {
+                                throw new IllegalStateException();
                             }
                             i++;
                         }
